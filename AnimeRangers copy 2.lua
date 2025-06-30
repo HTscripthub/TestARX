@@ -617,7 +617,10 @@ local mapNameMapping = {
     ["Demon Forest"] = "DemonSlayer",
     ["Leaf Village"] = "Naruto",
     ["Z City"] = "OPM",
-    ["Ghoul City"] = "TokyoGhoul"
+    ["Ghoul City"] = "TokyoGhoul",
+    ["Night Colosseum"] = "JojoPart1",
+    ["Bizzare Race"] = "BizzareRace"
+
 }
 
 -- Mapping ngược lại để hiển thị tên cho người dùng
@@ -653,24 +656,24 @@ local rangerFriendOnly = ConfigSystem.CurrentConfig.RangerFriendOnly or false
 local autoJoinRangerEnabled = ConfigSystem.CurrentConfig.AutoJoinRanger or false
 local autoJoinRangerLoop = nil
 
-
--- Biến lưu trạng thái Challenge
-local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
-local autoChallengeLoop = nil
-local challengeTimeDelay = ConfigSystem.CurrentConfig.ChallengeTimeDelay or 5
-
--- Thêm vào phần khai báo biến global
+-- Biến lưu trạng thái Raid
 _G.RaidVars = _G.RaidVars or {
     selectedRaidMap = "SteelBlitzRush",
     selectedRaidAct = 1,
     autoJoinRaidEnabled = false,
     raidTimeDelay = 5
 }
--- Thêm vào phần ConfigSystem
+
 ConfigSystem.CurrentConfig.SelectedRaidMap = ConfigSystem.CurrentConfig.SelectedRaidMap or "SteelBlitzRush"
 ConfigSystem.CurrentConfig.SelectedRaidAct = ConfigSystem.CurrentConfig.SelectedRaidAct or 1
 ConfigSystem.CurrentConfig.AutoJoinRaid = ConfigSystem.CurrentConfig.AutoJoinRaid or false
 ConfigSystem.CurrentConfig.RaidTimeDelay = ConfigSystem.CurrentConfig.RaidTimeDelay or 5
+
+-- Biến lưu trạng thái Challenge
+local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
+local autoChallengeLoop = nil
+local challengeTimeDelay = ConfigSystem.CurrentConfig.ChallengeTimeDelay or 5
+
 
 -- Biến lưu trạng thái In-Game
 local autoPlayEnabled = ConfigSystem.CurrentConfig.AutoPlay or false
@@ -1169,7 +1172,7 @@ local function joinMap()
 end
 
 -- Thứ tự các map theo yêu cầu
-local mapOrder = {"OnePiece", "Namek", "DemonSlayer", "Naruto", "OPM", "TokyoGhoul"}
+local mapOrder = {"OnePiece", "Namek", "DemonSlayer", "Naruto", "OPM", "TokyoGhoul", "JojoPart1", "BizzareRace"}
 
 -- Hàm kiểm tra xem người chơi đã hoàn thành map chapter chưa
 local function isChapterCompleted(mapName, chapterNumber)
@@ -1250,7 +1253,7 @@ end
 -- Dropdown để chọn Map
 StorySection:AddDropdown("MapDropdown", {
     Title = "Map",
-    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City" },
+    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Bizzare Race" },
     Multi = false,
     Default = selectedDisplayMap,
     Callback = function(Value)
@@ -2077,7 +2080,7 @@ storyTimeDelayInput = StorySection:AddInput("StoryTimeDelayInput", {
 -- Dropdown để chọn Map cho Ranger
 RangerSection:AddDropdown("RangerMapDropdown", {
     Title = "Map",        -- Sửa tiêu đề
-    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City" },
+    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Bizzare Race" },
     Multi = true,         -- Cho phép chọn nhiều
     Default = (function() -- Khôi phục trạng thái đã chọn từ config
         local defaults = {}
