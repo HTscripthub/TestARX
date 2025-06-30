@@ -658,16 +658,11 @@ local autoJoinRangerLoop = nil
 
 -- Biến lưu trạng thái Raid
 _G.RaidVars = _G.RaidVars or {
-    selectedRaidMap = "SteelBlitzRush",
-    selectedRaidAct = 1,
-    autoJoinRaidEnabled = false,
-    raidTimeDelay = 5
+    autoRaidEnabled = false,
+    selectedMap = "SteelBliztRush",
+    selectedAct = 1,
+    autoRaidLoop = nil
 }
-
-ConfigSystem.CurrentConfig.SelectedRaidMap = ConfigSystem.CurrentConfig.SelectedRaidMap or "SteelBlitzRush"
-ConfigSystem.CurrentConfig.SelectedRaidAct = ConfigSystem.CurrentConfig.SelectedRaidAct or 1
-ConfigSystem.CurrentConfig.AutoJoinRaid = ConfigSystem.CurrentConfig.AutoJoinRaid or false
-ConfigSystem.CurrentConfig.RaidTimeDelay = ConfigSystem.CurrentConfig.RaidTimeDelay or 5
 
 -- Biến lưu trạng thái Challenge
 local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
@@ -5946,150 +5941,67 @@ BossEventSection:AddToggle("AutoBossEventToggle", {
     end
 })
 
--- Hàm join Raid Map
-local function joinRaidMap()
-    if isPlayerInMap() then
-        print("Đang ở trong map, không thể join Raid")
-        return
-    end
+-- Tab Play đã có sẵn, thêm phần Raid vào
+PlayTab:AddSection("Raid")
 
-    local mapChapterMap = {
-        ["SteelBlitzRush"] = {
-            [1] = "SBR_Chapter1",
-            [2] = "SBR_Chapter2", 
-            [3] = "SBR_Chapter3",
-            [4] = "SBR_Chapter4"
-        }
-    }
-
-    local selectedChapter = mapChapterMap[_G.RaidVars.selectedRaidMap][_G.RaidVars.selectedRaidAct]
-    
-    if not selectedChapter then
-        print("Không tìm thấy chapter cho map và act đã chọn")
-        return
-    end
-
-    print("Đang join Raid: " .. _G.RaidVars.selectedRaidMap .. " - Act " .. _G.RaidVars.selectedRaidAct)
-
-    -- Bước 1: Change Mode to Raids Stage
-    local args1 = {
-        "Change-Mode",
-        { Mode = "Raids Stage" }
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args1))
-    
-    wait(1)
-    
-    -- Bước 2: Change Chapter
-    local args2 = {
-        "Change-Chapter",
-        { Chapter = selectedChapter }
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args2))
-    
-    wait(1)
-    
-    -- Bước 3: Submit
-    local args3 = { [1] = "Submit" }
-    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args3))
-    
-    wait(1)
-    
-    -- Bước 4: Start
-    local args4 = { [1] = "Start" }
-    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args4))
-    
-    print("Đã join Raid thành công!")
-end
-
--- Thêm vào tab Play (sau các section khác)
-local RaidSection = PlayTab:AddSection("Raid")
-
--- Dropdown Choose Map
-RaidSection:AddDropdown("RaidMapDropdown", {
-    Title = "Choose Map",
-    Values = {"SteelBlitzRush"},
+-- Dropdown chọn map
+PlayTab:AddDropdown("Choose Map", {
+    Values = { "SteelBliztRush" },
+    Default = "SteelBliztRush",
     Multi = false,
-    Default = _G.RaidVars.selectedRaidMap,
-    Callback = function(Value)
-        _G.RaidVars.selectedRaidMap = Value
-        ConfigSystem.CurrentConfig.SelectedRaidMap = Value
-        ConfigSystem.SaveConfig()
-        print("Đã chọn Raid Map: " .. Value)
+    Callback = function(value)
+        _G.RaidVars.selectedMap = value
     end
 })
 
--- Dropdown Choose Act
-RaidSection:AddDropdown("RaidActDropdown", {
-    Title = "Choose Act",
-    Values = {"1", "2", "3", "4"},
+-- Dropdown chọn Act
+PlayTab:AddDropdown("Choose Act", {
+    Values = { "1", "2", "3", "4" },
+    Default = "1",
     Multi = false,
-    Default = tostring(_G.RaidVars.selectedRaidAct),
-    Callback = function(Value)
-        _G.RaidVars.selectedRaidAct = tonumber(Value)
-        ConfigSystem.CurrentConfig.SelectedRaidAct = tonumber(Value)
-        ConfigSystem.SaveConfig()
-        print("Đã chọn Raid Act: " .. Value)
+    Callback = function(value)
+        _G.RaidVars.selectedAct = tonumber(value)
     end
 })
 
--- Input Time Delay
-RaidSection:AddInput("RaidTimeDelayInput", {
-    Title = "Time Delay (giây)",
-    Default = tostring(_G.RaidVars.raidTimeDelay),
-    Placeholder = "Nhập thời gian delay",
-    Numeric = true,
-    Finished = true,
-    Callback = function(Value)
-        local delay = tonumber(Value)
-        if delay and delay >= 1 then
-            _G.RaidVars.raidTimeDelay = delay
-            ConfigSystem.CurrentConfig.RaidTimeDelay = delay
-            ConfigSystem.SaveConfig()
-            print("Đã đặt Raid Time Delay: " .. delay .. " giây")
-        else
-            print("Vui lòng nhập số hợp lệ (>= 1)")
-        end
-    end
-})
-
--- Toggle Auto Join Raid Map
-RaidSection:AddToggle("AutoJoinRaidToggle", {
-    Title = "Auto Join Raid Map",
-    Default = _G.RaidVars.autoJoinRaidEnabled,
-    Callback = function(Value)
-        _G.RaidVars.autoJoinRaidEnabled = Value
-        ConfigSystem.CurrentConfig.AutoJoinRaid = Value
-        ConfigSystem.SaveConfig()
-
-        if Value then
-            -- Kiểm tra ngay lập tức nếu người chơi đang ở trong map
-            if isPlayerInMap() then
-                print("Đang ở trong map, Auto Join Raid sẽ hoạt động khi bạn rời khỏi map")
-            else
-                print("Auto Join Raid đã được bật, sẽ bắt đầu sau " .. _G.RaidVars.raidTimeDelay .. " giây")
-
-                -- Thực hiện join raid sau thời gian delay
-                spawn(function()
-                    wait(_G.RaidVars.raidTimeDelay)
-                    if _G.RaidVars.autoJoinRaidEnabled and not isPlayerInMap() then
-                        joinRaidMap()
-                    end
-                end)
+-- Nút bật/tắt Auto Join Map
+PlayTab:AddToggle("Auto Join Map", {
+    Default = false,
+    Callback = function(state)
+        _G.RaidVars.autoRaidEnabled = state
+        if state then
+            -- Bắt đầu vòng lặp auto join raid
+            if _G.RaidVars.autoRaidLoop then
+                _G.RaidVars.autoRaidLoop:Disconnect()
             end
-
-            -- Tạo vòng lặp Auto Join Raid
-            spawn(function()
-                while _G.RaidVars.autoJoinRaidEnabled and wait(10) do
-                    if not isPlayerInMap() then
-                        print("Không ở trong map, thử join Raid...")
-                        joinRaidMap()
-                    end
+            _G.RaidVars.autoRaidLoop = spawn(function()
+                while _G.RaidVars.autoRaidEnabled do
+                    -- Bước 1: Change-Mode
+                    local args1 = { "Change-Mode", { Mode = "Raids Stage" } }
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args1))
+                    wait(1)
+                    -- Bước 2: Change-Chapter
+                    local chapter = "SBR_Chapter" .. tostring(_G.RaidVars.selectedAct)
+                    local args2 = { "Change-Chapter", { Chapter = chapter } }
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args2))
+                    wait(1)
+                    -- Bước 3: Submit
+                    local args3 = { "Submit" }
+                    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args3))
+                    wait(1)
+                    -- Bước 4: Start
+                    local args4 = { "Start" }
+                    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args4))
+                    -- Đợi 10 giây rồi thử lại (hoặc bạn có thể điều chỉnh thời gian)
+                    wait(10)
                 end
             end)
         else
-            print("Auto Join Raid đã được tắt")
+            -- Tắt auto raid
+            if _G.RaidVars.autoRaidLoop then
+                _G.RaidVars.autoRaidLoop:Disconnect()
+                _G.RaidVars.autoRaidLoop = nil
+            end
         end
     end
 })
-
