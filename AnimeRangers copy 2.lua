@@ -503,9 +503,9 @@ ConfigSystem.DefaultConfig = {
     SelectedRaidMap = "SteelBlitzRush",
     SelectedRaidChapter = "1",
     AutoJoinRaid = false,
-
+    
     -- Cài đặt Event
-    JoinSummerEvent = false,
+    AutoJoinSummer = false,
 
     -- Cài đặt Portal
     AutoStartPortal = false,
@@ -731,6 +731,12 @@ local PlayTab = Window:AddTab({
     Icon = "rbxassetid://7743871480"
 })
 
+-- Tạo tab Event
+local EventTab = Window:AddTab({
+    Title = "Event",
+    Icon = "rbxassetid://7734110588"
+})
+
 -- Tạo tab In-Game
 local InGameTab = Window:AddTab({
     Title = "In-Game",
@@ -760,12 +766,6 @@ local ShopTab = Window:AddTab({
 local WebhookTab = Window:AddTab({
     Title = "Webhook",
     Icon = "rbxassetid://7734058803"
-})
-
--- Tạo tab Event
-local EventTab = Window:AddTab({
-    Title = "Event",
-    Icon = "rbxassetid://7733964719"
 })
 
 -- Tạo tab Settings
@@ -828,6 +828,71 @@ end)
 
 -- Tự động chọn tab Info khi khởi động
 Window:SelectTab(1) -- Chọn tab đầu tiên (Info)
+
+-- Thêm section Summer Event trong tab Event
+SummerEventSection = EventTab:AddSection("Summer Event") -- Sử dụng biến toàn cục
+
+-- Biến lưu trạng thái Summer Event
+autoJoinSummerEnabled = ConfigSystem.CurrentConfig.AutoJoinSummer or false
+
+-- Hàm để join Summer Event nằm trong toàn cục
+function joinSummerEvent()
+    -- Kiểm tra xem người chơi đã ở trong map chưa
+    if isPlayerInMap() then
+        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Summer Event")
+        return false
+    end
+
+    local success, err = pcall(function()
+        -- Gọi trực tiếp sự kiện Summer-Event
+        local Event = game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event")
+        local args = {"Summer-Event"}
+        Event:FireServer(unpack(args))
+        print("Đã gửi yêu cầu tham gia Summer Event")
+    end)
+
+    if not success then
+        warn("Lỗi khi join Summer Event: " .. tostring(err))
+        return false
+    end
+
+    return true
+end
+
+-- Toggle Join Summer Event (đơn giản hóa)
+SummerEventSection:AddToggle("JoinSummerToggle", {
+    Title = "Join Summer",
+    Default = ConfigSystem.CurrentConfig.AutoJoinSummer or false,
+    Callback = function(Value)
+        autoJoinSummerEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinSummer = Value
+        ConfigSystem.SaveConfig()
+        
+        -- Bỏ qua các thông báo và điều kiện phức tạp
+        if Value then
+            -- Chỉ join khi không ở trong map
+            if not isPlayerInMap() then
+                joinSummerEvent()
+            end
+            
+            -- Sử dụng biến toàn cục để giảm số lượng biến cục bộ
+            _G.summerEventLoop = function()
+                if autoJoinSummerEnabled and not isPlayerInMap() then
+                    joinSummerEvent()
+                end
+                
+                if autoJoinSummerEnabled then
+                    spawn(function() wait(5) _G.summerEventLoop() end)
+                end
+            end
+            
+            _G.summerEventLoop()
+        else
+            -- Không cần hủy vòng lặp, chỉ đặt flag thành false
+            print("Join Summer Event đã được tắt")
+        end
+    end
+})
 
 -- Thêm section thông tin trong tab Info
 local InfoSection = InfoTab:AddSection("Thông tin")
@@ -6102,30 +6167,6 @@ RaidSection:AddToggle("AutoJoinRaidToggle", {
                 _G.autoJoinRaidLoop:Disconnect()
                 _G.autoJoinRaidLoop = nil
             end
-        end
-    end
-})
-
--- Tạo tab Event
-EventTab = Window:AddTab({
-    Title = "Event",
-    Icon = "rbxassetid://8997384977"
-})
-
--- Tạo section cho Summer Event
-EventSection = EventTab:AddSection("Summer Event")
-
--- Tạo nút Join Summer với logic đơn giản nhất
-EventSection:AddButton({
-    Title = "Join Summer",
-    Callback = function()
-        local success, err = pcall(function()
-            game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer("Summer-Event")
-        end)
-        if success then
-            print("Đã gửi yêu cầu tham gia Summer Event")
-        else
-            warn("Lỗi: "..tostring(err))
         end
     end
 })
