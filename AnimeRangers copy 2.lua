@@ -844,10 +844,21 @@ function joinSummerEvent()
     end
 
     local success, err = pcall(function()
-        -- Gọi trực tiếp sự kiện Summer-Event
-        local Event = game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event")
-        local args = {"Summer-Event"}
-        Event:FireServer(unpack(args))
+        -- Lấy Event
+        local Event = safeGetPath(game:GetService("ReplicatedStorage"), { "Remote", "Server", "PlayRoom", "Event" }, 2)
+
+        if not Event then
+            warn("Không tìm thấy Event để join Summer Event")
+            return false
+        end
+        
+        -- Bước 1: Create room trước
+        Event:FireServer("Create")
+        wait(0.5)
+        print("Đã tạo phòng cho Summer Event")
+        
+        -- Bước 2: Gọi Summer-Event
+        Event:FireServer("Summer-Event")
         print("Đã gửi yêu cầu tham gia Summer Event")
     end)
 
@@ -868,28 +879,35 @@ SummerEventSection:AddToggle("JoinSummerToggle", {
         ConfigSystem.CurrentConfig.AutoJoinSummer = Value
         ConfigSystem.SaveConfig()
         
-        -- Bỏ qua các thông báo và điều kiện phức tạp
         if Value then
-            -- Chỉ join khi không ở trong map
+            print("Join Summer Event đã được bật")
+            
+            -- Thực hiện join ngay lập tức nếu không ở trong map
             if not isPlayerInMap() then
                 joinSummerEvent()
             end
             
-            -- Sử dụng biến toàn cục để giảm số lượng biến cục bộ
-            _G.summerEventLoop = function()
-                if autoJoinSummerEnabled and not isPlayerInMap() then
-                    joinSummerEvent()
-                end
-                
-                if autoJoinSummerEnabled then
-                    spawn(function() wait(5) _G.summerEventLoop() end)
-                end
+            -- Tạo vòng lặp thông thường thay vì dùng đệ quy
+            if _G.summerEventLoop then
+                _G.summerEventLoop:Disconnect()
+                _G.summerEventLoop = nil
             end
             
-            _G.summerEventLoop()
+            _G.summerEventLoop = spawn(function()
+                while autoJoinSummerEnabled and wait(5) do
+                    if not isPlayerInMap() then
+                        joinSummerEvent()
+                    end
+                end
+            end)
         else
-            -- Không cần hủy vòng lặp, chỉ đặt flag thành false
             print("Join Summer Event đã được tắt")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.summerEventLoop then
+                _G.summerEventLoop:Disconnect()
+                _G.summerEventLoop = nil
+            end
         end
     end
 })
