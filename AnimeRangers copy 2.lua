@@ -5984,6 +5984,14 @@ local function joinRaid()
             warn("Không tìm thấy Event để join Raid")
             return
         end
+        
+        -- Bước 0: Create
+        local args0 = {
+            [1] = "Create"
+        }
+        Event:FireServer(unpack(args0))
+        wait(0.5)
+        print("Bước 0: Đã tạo phòng")
 
         -- Bước 1: Thay đổi mode thành "Raids Stage"
         local args1 = {
