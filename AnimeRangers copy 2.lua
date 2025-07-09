@@ -504,6 +504,9 @@ ConfigSystem.DefaultConfig = {
     SelectedRaidChapter = "1",
     AutoJoinRaid = false,
 
+    -- Cài đặt Event
+    JoinSummerEvent = false,
+
     -- Cài đặt Portal
     AutoStartPortal = false,
 }
@@ -757,6 +760,12 @@ local ShopTab = Window:AddTab({
 local WebhookTab = Window:AddTab({
     Title = "Webhook",
     Icon = "rbxassetid://7734058803"
+})
+
+-- Tạo tab Event
+local EventTab = Window:AddTab({
+    Title = "Event",
+    Icon = "rbxassetid://7733964719"
 })
 
 -- Tạo tab Settings
@@ -1369,7 +1378,7 @@ StorySection:AddToggle("AutoJoinMapToggle", {
 
 -- Toggle Auto Join All Story
 StorySection:AddToggle("AutoJoinAllStoryToggle", {
-    Title = "Auto Join All Story",
+    Title = "Auto Join Highest Story",
     Default = ConfigSystem.CurrentConfig.AutoJoinAllStory or false,
     Callback = function(Value)
         autoJoinAllStoryEnabled = Value
@@ -6093,6 +6102,30 @@ RaidSection:AddToggle("AutoJoinRaidToggle", {
                 _G.autoJoinRaidLoop:Disconnect()
                 _G.autoJoinRaidLoop = nil
             end
+        end
+    end
+})
+
+-- Tạo tab Event
+EventTab = Window:AddTab({
+    Title = "Event",
+    Icon = "rbxassetid://8997384977"
+})
+
+-- Tạo section cho Summer Event
+EventSection = EventTab:AddSection("Summer Event")
+
+-- Tạo nút Join Summer với logic đơn giản nhất
+EventSection:AddButton({
+    Title = "Join Summer",
+    Callback = function()
+        local success, err = pcall(function()
+            game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer("Summer-Event")
+        end)
+        if success then
+            print("Đã gửi yêu cầu tham gia Summer Event")
+        else
+            warn("Lỗi: "..tostring(err))
         end
     end
 })
