@@ -499,6 +499,11 @@ ConfigSystem.DefaultConfig = {
     -- Cài đặt RC Exchange
     AutoBuyQuinque = false,
 
+    -- Cài đặt Raid
+    SelectedRaidMap = "SteelBlitzRush",
+    SelectedRaidChapter = "1",
+    AutoJoinRaid = false,
+
     -- Cài đặt Portal
     AutoStartPortal = false,
 }
@@ -2066,7 +2071,7 @@ storyTimeDelayInput = StorySection:AddInput("StoryTimeDelayInput", {
 -- Dropdown để chọn Map cho Ranger
 RangerSection:AddDropdown("RangerMapDropdown", {
     Title = "Map",        -- Sửa tiêu đề
-    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Bizzare Race" },
+    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum" },
     Multi = true,         -- Cho phép chọn nhiều
     Default = (function() -- Khôi phục trạng thái đã chọn từ config
         local defaults = {}
@@ -5936,16 +5941,16 @@ BossEventSection:AddToggle("AutoBossEventToggle", {
 local RaidSection = PlayTab:AddSection("Raid")
 
 -- Biến lưu trạng thái Raid (sử dụng biến toàn cục để giảm số lượng biến cục bộ)
-selectedRaidMap = "SteelBlitzRush"
-selectedRaidChapter = "1"
-autoJoinRaidEnabled = false
+selectedRaidMap = ConfigSystem.CurrentConfig.SelectedRaidMap or "SteelBlitzRush"
+selectedRaidChapter = ConfigSystem.CurrentConfig.SelectedRaidChapter or "1"
+autoJoinRaidEnabled = ConfigSystem.CurrentConfig.AutoJoinRaid or false
 
 -- Dropdown để chọn Raid Map
 RaidSection:AddDropdown("RaidMapDropdown", {
     Title = "Map",
     Values = { "SteelBlitzRush" },  -- Hiện tại chỉ có 1 map
     Multi = false,
-    Default = selectedRaidMap,
+    Default = ConfigSystem.CurrentConfig.SelectedRaidMap or "SteelBlitzRush",
     Callback = function(Value)
         selectedRaidMap = Value
         ConfigSystem.CurrentConfig.SelectedRaidMap = Value
@@ -5959,7 +5964,7 @@ RaidSection:AddDropdown("RaidChapterDropdown", {
     Title = "Chapter",
     Values = { "1", "2", "3", "4" },
     Multi = false,
-    Default = selectedRaidChapter,
+    Default = ConfigSystem.CurrentConfig.SelectedRaidChapter or "1",
     Callback = function(Value)
         selectedRaidChapter = Value
         ConfigSystem.CurrentConfig.SelectedRaidChapter = Value
@@ -6053,7 +6058,7 @@ end
 -- Toggle để bật/tắt Auto Join Raid
 RaidSection:AddToggle("AutoJoinRaidToggle", {
     Title = "Join Raid",
-    Default = false,
+    Default = ConfigSystem.CurrentConfig.AutoJoinRaid or false,
     Callback = function(Value)
         autoJoinRaidEnabled = Value
         ConfigSystem.CurrentConfig.AutoJoinRaid = Value
