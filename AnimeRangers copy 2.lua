@@ -333,7 +333,7 @@ if not keyValid then
     return
 end
 
--- Delay 30 giây trước khi mở script
+-- Delay 10 giây trước khi mở script
 print("HT Hub | Anime Rangers X đang khởi động, vui lòng đợi 10 giây...")
 wait(10)
 print("Đang tải script...")
@@ -620,7 +620,6 @@ local mapNameMapping = {
     ["Ghoul City"] = "TokyoGhoul",
     ["Night Colosseum"] = "JojoPart1",
     ["Bizzare Race"] = "BizzareRace"
-
 }
 
 -- Mapping ngược lại để hiển thị tên cho người dùng
@@ -656,19 +655,11 @@ local rangerFriendOnly = ConfigSystem.CurrentConfig.RangerFriendOnly or false
 local autoJoinRangerEnabled = ConfigSystem.CurrentConfig.AutoJoinRanger or false
 local autoJoinRangerLoop = nil
 
--- Biến lưu trạng thái Raid
-_G.RaidVars = _G.RaidVars or {
-    autoRaidEnabled = false,
-    selectedMap = "SteelBliztRush",
-    selectedAct = 1,
-    autoRaidLoop = nil
-}
 
 -- Biến lưu trạng thái Challenge
 local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
 local autoChallengeLoop = nil
 local challengeTimeDelay = ConfigSystem.CurrentConfig.ChallengeTimeDelay or 5
-
 
 -- Biến lưu trạng thái In-Game
 local autoPlayEnabled = ConfigSystem.CurrentConfig.AutoPlay or false
@@ -5941,67 +5932,155 @@ BossEventSection:AddToggle("AutoBossEventToggle", {
     end
 })
 
--- Tab Play đã có sẵn, thêm phần Raid vào
-PlayTab:AddSection("Raid")
+-- Thêm section Raid trong tab Play
+local RaidSection = PlayTab:AddSection("Raid")
 
--- Dropdown chọn map
-PlayTab:AddDropdown("Choose Map", {
-    Values = { "SteelBliztRush" },
-    Default = "SteelBliztRush",
+-- Biến lưu trạng thái Raid (sử dụng biến toàn cục để giảm số lượng biến cục bộ)
+selectedRaidMap = "SteelBlitzRush"
+selectedRaidChapter = "1"
+autoJoinRaidEnabled = false
+
+-- Dropdown để chọn Raid Map
+RaidSection:AddDropdown("RaidMapDropdown", {
+    Title = "Map",
+    Values = { "SteelBlitzRush" },  -- Hiện tại chỉ có 1 map
     Multi = false,
-    Callback = function(value)
-        _G.RaidVars.selectedMap = value
+    Default = selectedRaidMap,
+    Callback = function(Value)
+        selectedRaidMap = Value
+        ConfigSystem.CurrentConfig.SelectedRaidMap = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn Raid map: " .. Value)
     end
 })
 
--- Dropdown chọn Act
-PlayTab:AddDropdown("Choose Act", {
+-- Dropdown để chọn Raid Chapter
+RaidSection:AddDropdown("RaidChapterDropdown", {
+    Title = "Chapter",
     Values = { "1", "2", "3", "4" },
-    Default = "1",
     Multi = false,
-    Callback = function(value)
-        _G.RaidVars.selectedAct = tonumber(value)
+    Default = selectedRaidChapter,
+    Callback = function(Value)
+        selectedRaidChapter = Value
+        ConfigSystem.CurrentConfig.SelectedRaidChapter = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn Raid chapter: " .. Value)
     end
 })
 
--- Nút bật/tắt Auto Join Map
-PlayTab:AddToggle("Auto Join Map", {
+-- Hàm để join Raid
+local function joinRaid()
+    -- Kiểm tra xem người chơi đã ở trong map chưa
+    if isPlayerInMap() then
+        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Raid")
+        return false
+    end
+
+    local success, err = pcall(function()
+        -- Lấy Event
+        local Event = safeGetPath(game:GetService("ReplicatedStorage"), { "Remote", "Server", "PlayRoom", "Event" }, 2)
+
+        if not Event then
+            warn("Không tìm thấy Event để join Raid")
+            return
+        end
+
+        -- Bước 1: Thay đổi mode thành "Raids Stage"
+        local args1 = {
+            [1] = "Change-Mode",
+            [2] = {
+                ["Mode"] = "Raids Stage"
+            }
+        }
+        Event:FireServer(unpack(args1))
+        wait(0.5)
+        print("Bước 1: Đã đổi mode sang Raids Stage")
+
+        -- Bước 2: Thay đổi World thành "SteelBlitzRush"
+        local args2 = {
+            [1] = "Change-World",
+            [2] = {
+                ["World"] = selectedRaidMap
+            }
+        }
+        Event:FireServer(unpack(args2))
+        wait(0.5)
+        print("Bước 2: Đã đổi World sang " .. selectedRaidMap)
+
+        -- Bước 3: Thay đổi Chapter thành "SBR_Chapter[X]"
+        local args3 = {
+            [1] = "Change-Chapter",
+            [2] = {
+                ["Chapter"] = "SBR_Chapter" .. selectedRaidChapter
+            }
+        }
+        Event:FireServer(unpack(args3))
+        wait(0.5)
+        print("Bước 3: Đã đổi Chapter sang SBR_Chapter" .. selectedRaidChapter)
+
+        -- Bước 4: Submit
+        local args4 = {
+            [1] = "Submit"
+        }
+        Event:FireServer(unpack(args4))
+        wait(1)
+        print("Bước 4: Đã Submit")
+
+        -- Bước 5: Start
+        local args5 = {
+            [1] = "Start"
+        }
+        Event:FireServer(unpack(args5))
+        print("Bước 5: Đã Start")
+    end)
+
+    if not success then
+        warn("Lỗi khi join Raid: " .. tostring(err))
+        return false
+    end
+
+    return true
+end
+
+-- Toggle để bật/tắt Auto Join Raid
+RaidSection:AddToggle("AutoJoinRaidToggle", {
+    Title = "Join Raid",
     Default = false,
-    Callback = function(state)
-        _G.RaidVars.autoRaidEnabled = state
-        if state then
-            -- Bắt đầu vòng lặp auto join raid
-            if _G.RaidVars.autoRaidLoop then
-                _G.RaidVars.autoRaidLoop:Disconnect()
+    Callback = function(Value)
+        autoJoinRaidEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinRaid = Value
+        ConfigSystem.SaveConfig()
+
+        if Value then
+            -- Thực hiện join Raid ngay lập tức
+            if isPlayerInMap() then
+                print("Đang ở trong map, Join Raid sẽ hoạt động khi bạn rời khỏi map")
+            else
+                print("Join Raid đã được bật, bắt đầu tham gia ngay")
+                joinRaid()
             end
-            _G.RaidVars.autoRaidLoop = spawn(function()
-                while _G.RaidVars.autoRaidEnabled do
-                    -- Bước 1: Change-Mode
-                    local args1 = { "Change-Mode", { Mode = "Raids Stage" } }
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args1))
-                    wait(1)
-                    -- Bước 2: Change-Chapter
-                    local chapter = "SBR_Chapter" .. tostring(_G.RaidVars.selectedAct)
-                    local args2 = { "Change-Chapter", { Chapter = chapter } }
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args2))
-                    wait(1)
-                    -- Bước 3: Submit
-                    local args3 = { "Submit" }
-                    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args3))
-                    wait(1)
-                    -- Bước 4: Start
-                    local args4 = { "Start" }
-                    game:GetService("ReplicatedStorage").Remote.Server.PlayRoom.Event:FireServer(unpack(args4))
-                    -- Đợi 10 giây rồi thử lại (hoặc bạn có thể điều chỉnh thời gian)
-                    wait(10)
+
+            -- Tạo vòng lặp Auto Join Raid
+            _G.autoJoinRaidLoop = spawn(function()
+                while autoJoinRaidEnabled and wait(5) do
+                    if not isPlayerInMap() then
+                        joinRaid()
+                    else
+                        -- Người chơi đang ở trong map, đợi đến khi rời khỏi map
+                        print("Đang ở trong map, đợi đến khi người chơi rời khỏi map")
+                        wait(5)  -- Đợi 5 giây rồi kiểm tra lại
+                    end
                 end
             end)
         else
-            -- Tắt auto raid
-            if _G.RaidVars.autoRaidLoop then
-                _G.RaidVars.autoRaidLoop:Disconnect()
-                _G.RaidVars.autoRaidLoop = nil
+            print("Join Raid đã được tắt")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.autoJoinRaidLoop then
+                _G.autoJoinRaidLoop:Disconnect()
+                _G.autoJoinRaidLoop = nil
             end
         end
     end
 })
+
