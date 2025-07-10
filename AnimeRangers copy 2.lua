@@ -731,12 +731,6 @@ local PlayTab = Window:AddTab({
     Icon = "rbxassetid://7743871480"
 })
 
--- Tạo tab Event
-local EventTab = Window:AddTab({
-    Title = "Event",
-    Icon = "rbxassetid://7734070982"
-})
-
 -- Tạo tab In-Game
 local InGameTab = Window:AddTab({
     Title = "In-Game",
@@ -828,89 +822,6 @@ end)
 
 -- Tự động chọn tab Info khi khởi động
 Window:SelectTab(1) -- Chọn tab đầu tiên (Info)
-
--- Thêm section Summer Event trong tab Event
-SummerEventSection = EventTab:AddSection("Summer Event") -- Sử dụng biến toàn cục
-
--- Biến lưu trạng thái Summer Event
-autoJoinSummerEnabled = ConfigSystem.CurrentConfig.AutoJoinSummer or false
-
--- Hàm để join Summer Event nằm trong toàn cục
-function joinSummerEvent()
-    -- Kiểm tra xem người chơi đã ở trong map chưa
-    if isPlayerInMap() then
-        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Summer Event")
-        return false
-    end
-
-    local success, err = pcall(function()
-        -- Lấy Event
-        local Event = safeGetPath(game:GetService("ReplicatedStorage"), { "Remote", "Server", "PlayRoom", "Event" }, 2)
-
-        if not Event then
-            warn("Không tìm thấy Event để join Summer Event")
-            return false
-        end
-        
-        -- Bước 1: Create room trước
-        Event:FireServer("Create")
-        wait(0.5)
-        print("Đã tạo phòng cho Summer Event")
-        
-        -- Bước 2: Gọi Summer-Event
-        Event:FireServer("Summer-Event")
-        print("Đã gửi yêu cầu tham gia Summer Event")
-    end)
-
-    if not success then
-        warn("Lỗi khi join Summer Event: " .. tostring(err))
-        return false
-    end
-
-    return true
-end
-
--- Toggle Join Summer Event (đơn giản hóa)
-SummerEventSection:AddToggle("JoinSummerToggle", {
-    Title = "Join Summer",
-    Default = ConfigSystem.CurrentConfig.AutoJoinSummer or false,
-    Callback = function(Value)
-        autoJoinSummerEnabled = Value
-        ConfigSystem.CurrentConfig.AutoJoinSummer = Value
-        ConfigSystem.SaveConfig()
-        
-        if Value then
-            print("Join Summer Event đã được bật")
-            
-            -- Thực hiện join ngay lập tức nếu không ở trong map
-            if not isPlayerInMap() then
-                joinSummerEvent()
-            end
-            
-            -- Tạo vòng lặp thông thường thay vì dùng đệ quy
-            if _G.summerEventLoop then
-                _G.summerEventLoop:Disconnect()
-                _G.summerEventLoop = nil
-            end
-            
-            _G.summerEventLoop = spawn(function()
-                while autoJoinSummerEnabled and wait(5) do
-                    if not isPlayerInMap() then
-                        joinSummerEvent()
-                    end
-                end
-            end)
-        else
-            print("Join Summer Event đã được tắt")
-            
-            -- Hủy vòng lặp nếu có
-            if _G.summerEventLoop then
-                _G.summerEventLoop:Disconnect()
-                _G.summerEventLoop = nil
-            end
-        end
-    end
-})
 
 -- Thêm section thông tin trong tab Info
 local InfoSection = InfoTab:AddSection("Thông tin")
@@ -6184,6 +6095,85 @@ RaidSection:AddToggle("AutoJoinRaidToggle", {
             if _G.autoJoinRaidLoop then
                 _G.autoJoinRaidLoop:Disconnect()
                 _G.autoJoinRaidLoop = nil
+            end
+        end
+    end
+})
+
+-- Thêm section Event trong tab Play
+EventSection = PlayTab:AddSection("Event")
+
+-- Biến lưu trạng thái Event
+autoJoinSummerEnabled = ConfigSystem.CurrentConfig.AutoJoinSummer or false
+
+-- Hàm để join Summer Event
+local function joinSummerEvent()
+    -- Kiểm tra xem người chơi đã ở trong map chưa
+    if isPlayerInMap() then
+        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Summer Event")
+        return false
+    end
+
+    local success, err = pcall(function()
+        -- Lấy Event
+        local Event = safeGetPath(game:GetService("ReplicatedStorage"), { "Remote", "Server", "PlayRoom", "Event" }, 2)
+
+        if not Event then
+            warn("Không tìm thấy Event để join Summer Event")
+            return
+        end
+        
+        -- Join Summer Event
+        local args = {"Summer-Event"}
+        Event:FireServer(unpack(args))
+        print("Đã gửi yêu cầu tham gia Summer Event")
+    end)
+
+    if not success then
+        warn("Lỗi khi join Summer Event: " .. tostring(err))
+        return false
+    end
+
+    return true
+end
+
+-- Toggle để bật/tắt Join Summer Event
+EventSection:AddToggle("JoinSummerToggle", {
+    Title = "Join Summer Event",
+    Default = ConfigSystem.CurrentConfig.AutoJoinSummer or false,
+    Callback = function(Value)
+        autoJoinSummerEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinSummer = Value
+        ConfigSystem.SaveConfig()
+
+        if Value then
+            -- Thực hiện join Summer Event ngay lập tức
+            if isPlayerInMap() then
+                print("Đang ở trong map, Join Summer Event sẽ hoạt động khi bạn rời khỏi map")
+            else
+                print("Join Summer Event đã được bật, bắt đầu tham gia ngay")
+                joinSummerEvent()
+            end
+
+            -- Tạo vòng lặp Auto Join Summer Event
+            _G.autoJoinSummerLoop = spawn(function()
+                while autoJoinSummerEnabled and wait(5) do
+                    if not isPlayerInMap() then
+                        joinSummerEvent()
+                    else
+                        -- Người chơi đang ở trong map, đợi đến khi rời khỏi map
+                        print("Đang ở trong map, đợi đến khi người chơi rời khỏi map")
+                        wait(5)  -- Đợi 5 giây rồi kiểm tra lại
+                    end
+                end
+            end)
+        else
+            print("Join Summer Event đã được tắt")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.autoJoinSummerLoop then
+                _G.autoJoinSummerLoop:Disconnect()
+                _G.autoJoinSummerLoop = nil
             end
         end
     end
