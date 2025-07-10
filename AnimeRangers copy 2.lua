@@ -511,6 +511,10 @@ ConfigSystem.DefaultConfig = {
     SelectedSummerItem = "Trait Reroll",
     SelectedSummerAmount = "1",
     AutoSummerBuy = false,
+    
+    -- Cài đặt Speed
+    SelectedGameSpeed = "1",
+    SpeedEnabled = false,
 
     -- Cài đặt Portal
     AutoStartPortal = false,
@@ -6337,3 +6341,79 @@ SummerShopSection:AddToggle("AutoSummerBuyToggle", {
     end
 })
 
+-- Thêm section Speed trong tab Settings
+SpeedSection = SettingsTab:AddSection("Speed")
+
+-- Biến lưu trạng thái Speed
+selectedGameSpeed = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1"
+speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
+
+-- Hàm để thay đổi tốc độ game
+function setGameSpeed(speed)
+    local success, err = pcall(function()
+        local gameSpeedValue = safeGetPath(game:GetService("ReplicatedStorage"), {"Values", "Game", "GameSpeed"}, 2)
+        
+        if gameSpeedValue and gameSpeedValue:IsA("NumberValue") then
+            gameSpeedValue.Value = tonumber(speed) or 1
+            print("Đã đặt tốc độ game thành: " .. speed)
+        else
+            warn("Không tìm thấy GameSpeed hoặc không phải là NumberValue")
+        end
+    end)
+    
+    if not success then
+        warn("Lỗi khi thay đổi tốc độ game: " .. tostring(err))
+    end
+end
+
+-- Dropdown để chọn tốc độ
+SpeedSection:AddDropdown("GameSpeedDropdown", {
+    Title = "Speed",
+    Values = {"1", "2", "3"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1",
+    Callback = function(Value)
+        selectedGameSpeed = Value
+        ConfigSystem.CurrentConfig.SelectedGameSpeed = Value
+        ConfigSystem.SaveConfig()
+        
+        -- Nếu Speed đang được bật, áp dụng tốc độ mới ngay lập tức
+        if speedEnabled then
+            setGameSpeed(Value)
+        end
+        
+        print("Đã chọn tốc độ: " .. Value)
+    end
+})
+
+-- Toggle để bật/tắt Speed
+SpeedSection:AddToggle("SpeedToggle", {
+    Title = "Enable",
+    Default = ConfigSystem.CurrentConfig.SpeedEnabled or false,
+    Callback = function(Value)
+        speedEnabled = Value
+        ConfigSystem.CurrentConfig.SpeedEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if Value then
+            print("Speed đã được bật, đặt tốc độ: " .. selectedGameSpeed)
+            setGameSpeed(selectedGameSpeed)
+            
+            -- Tạo vòng lặp để đảm bảo tốc độ luôn được áp dụng
+            _G.speedLoop = spawn(function()
+                while speedEnabled and wait(5) do
+                    setGameSpeed(selectedGameSpeed)
+                end
+            end)
+        else
+            print("Speed đã được tắt, đặt lại tốc độ mặc định: 1")
+            setGameSpeed("1")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.speedLoop then
+                _G.speedLoop:Disconnect()
+                _G.speedLoop = nil
+            end
+        end
+    end
+})
