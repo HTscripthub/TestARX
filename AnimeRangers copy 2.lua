@@ -6351,13 +6351,30 @@ speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
 -- Hàm để thay đổi tốc độ game
 function setGameSpeed(speed)
     local success, err = pcall(function()
-        local gameSpeedValue = safeGetPath(game:GetService("ReplicatedStorage"), {"Values", "Game", "GameSpeed"}, 2)
+        -- Truy cập trực tiếp đến GameSpeed
+        local gameSpeedValue = game:GetService("ReplicatedStorage"):FindFirstChild("Values")
+        if gameSpeedValue then
+            gameSpeedValue = gameSpeedValue:FindFirstChild("Game")
+            if gameSpeedValue then
+                gameSpeedValue = gameSpeedValue:FindFirstChild("GameSpeed")
+                if gameSpeedValue and gameSpeedValue:IsA("NumberValue") then
+                    local speedNum = tonumber(speed) or 1
+                    gameSpeedValue.Value = speedNum
+                    print("Đã đặt tốc độ game thành: " .. speedNum)
+                    return
+                end
+            end
+        end
         
-        if gameSpeedValue and gameSpeedValue:IsA("NumberValue") then
-            gameSpeedValue.Value = tonumber(speed) or 1
-            print("Đã đặt tốc độ game thành: " .. speed)
+        -- Nếu không tìm thấy theo cách trên, thử cách khác
+        if game:GetService("ReplicatedStorage").Values and 
+           game:GetService("ReplicatedStorage").Values.Game and 
+           game:GetService("ReplicatedStorage").Values.Game.GameSpeed then
+            local speedNum = tonumber(speed) or 1
+            game:GetService("ReplicatedStorage").Values.Game.GameSpeed.Value = speedNum
+            print("Đã đặt tốc độ game thành: " .. speedNum .. " (phương pháp 2)")
         else
-            warn("Không tìm thấy GameSpeed hoặc không phải là NumberValue")
+            warn("Không tìm thấy GameSpeed")
         end
     end)
     
@@ -6401,8 +6418,9 @@ SpeedSection:AddToggle("SpeedToggle", {
             
             -- Tạo vòng lặp để đảm bảo tốc độ luôn được áp dụng
             _G.speedLoop = spawn(function()
-                while speedEnabled and wait(5) do
+                while speedEnabled do
                     setGameSpeed(selectedGameSpeed)
+                    wait(1) -- Kiểm tra và áp dụng tốc độ thường xuyên hơn
                 end
             end)
         else
