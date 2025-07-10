@@ -506,6 +506,11 @@ ConfigSystem.DefaultConfig = {
     
     -- Cài đặt Event
     AutoJoinSummer = false,
+    
+    -- Cài đặt Summer Shop
+    SelectedSummerItem = "Trait Reroll",
+    SelectedSummerAmount = "1",
+    AutoSummerBuy = false,
 
     -- Cài đặt Portal
     AutoStartPortal = false,
@@ -3861,7 +3866,7 @@ local function createEmbed(rewards, gameInfo)
     statsText = "- Name: " .. "||" .. playerName .. "||\n"
 
     -- Luôn hiển thị các tài nguyên chính: Level, Gem, Gold
-    local mainResources = { "Level", "Gem", "Gold" }
+    local mainResources = { "Level", "Gem", "Gold", "Beach Balls" }
     for _, resourceName in ipairs(mainResources) do
         local value = playerResources[resourceName] or 0
         statsText = statsText .. "- " .. resourceName .. ": " .. value .. "\n"
@@ -6174,6 +6179,159 @@ EventSection:AddToggle("JoinSummerToggle", {
             if _G.autoJoinSummerLoop then
                 _G.autoJoinSummerLoop:Disconnect()
                 _G.autoJoinSummerLoop = nil
+            end
+        end
+    end
+})
+
+-- Thêm section Summer Shop trong tab Shop
+SummerShopSection = ShopTab:AddSection("Summer Shop")
+
+-- Biến lưu trạng thái Summer Shop
+selectedSummerItem = ConfigSystem.CurrentConfig.SelectedSummerItem or "Trait Reroll"
+selectedSummerAmount = ConfigSystem.CurrentConfig.SelectedSummerAmount or "1"
+autoSummerBuyEnabled = ConfigSystem.CurrentConfig.AutoSummerBuy or false
+
+-- Giá của các item Summer Shop
+summerItemPrices = {
+    ["Trait Reroll"] = 450,
+    ["Summer Capsule"] = 300,
+    ["Stats Key"] = 50
+}
+
+-- Hàm để lấy số lượng Beach Balls của người chơi
+function getBeachBallsCount()
+    local success, count = pcall(function()
+        local playerName = game:GetService("Players").LocalPlayer.Name
+        local beachBalls = game:GetService("ReplicatedStorage").Player_Data[playerName].Data["Beach Balls"]
+        
+        if beachBalls and beachBalls:IsA("NumberValue") then
+            return beachBalls.Value
+        end
+        return 0
+    end)
+    
+    if not success then
+        warn("Lỗi khi lấy số lượng Beach Balls: " .. tostring(count))
+        return 0
+    end
+    
+    return count
+end
+
+-- Hàm để mua item từ Summer Shop
+function buySummerItem(itemName, amount)
+    local success, err = pcall(function()
+        local SummerShop = safeGetPath(game:GetService("ReplicatedStorage"), {"Remote", "Server", "Gameplay", "SummerShop"}, 2)
+        
+        if not SummerShop then
+            warn("Không tìm thấy Remote SummerShop")
+            return false
+        end
+        
+        -- Nếu amount là "All", tính toán số lượng tối đa có thể mua
+        local actualAmount = amount
+        if amount == "All" then
+            local beachBalls = getBeachBallsCount()
+            local itemPrice = summerItemPrices[itemName] or 0
+            
+            if itemPrice <= 0 then
+                warn("Không tìm thấy giá của item: " .. itemName)
+                return false
+            end
+            
+            actualAmount = math.floor(beachBalls / itemPrice)
+            print("Số Beach Balls hiện có: " .. beachBalls .. ", có thể mua tối đa " .. actualAmount .. " " .. itemName)
+            
+            if actualAmount <= 0 then
+                print("Không đủ Beach Balls để mua " .. itemName)
+                return false
+            end
+        else
+            -- Chuyển đổi từ chuỗi sang số
+            actualAmount = tonumber(amount)
+        end
+        
+        -- Gửi yêu cầu mua
+        local args = {
+            [1] = itemName,
+            [2] = actualAmount
+        }
+        
+        SummerShop:FireServer(unpack(args))
+        print("Đã gửi yêu cầu mua " .. actualAmount .. " " .. itemName)
+        return true
+    end)
+    
+    if not success then
+        warn("Lỗi khi mua item Summer Shop: " .. tostring(err))
+        return false
+    end
+    
+    return true
+end
+
+-- Dropdown để chọn Summer Item
+SummerShopSection:AddDropdown("SummerItemDropdown", {
+    Title = "Select Item",
+    Values = {"Trait Reroll", "Summer Capsule", "Stats Key"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedSummerItem or "Trait Reroll",
+    Callback = function(Value)
+        selectedSummerItem = Value
+        ConfigSystem.CurrentConfig.SelectedSummerItem = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn Summer Item: " .. Value)
+    end
+})
+
+-- Dropdown để chọn số lượng
+SummerShopSection:AddDropdown("SummerAmountDropdown", {
+    Title = "Amount",
+    Values = {"1", "10", "50", "All"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedSummerAmount or "1",
+    Callback = function(Value)
+        selectedSummerAmount = Value
+        ConfigSystem.CurrentConfig.SelectedSummerAmount = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn số lượng: " .. Value)
+    end
+})
+
+-- Button để mua ngay
+SummerShopSection:AddButton({
+    Title = "Buy Now",
+    Callback = function()
+        buySummerItem(selectedSummerItem, selectedSummerAmount)
+    end
+})
+
+-- Toggle để bật/tắt Auto Buy
+SummerShopSection:AddToggle("AutoSummerBuyToggle", {
+    Title = "Auto Buy",
+    Default = ConfigSystem.CurrentConfig.AutoSummerBuy or false,
+    Callback = function(Value)
+        autoSummerBuyEnabled = Value
+        ConfigSystem.CurrentConfig.AutoSummerBuy = Value
+        ConfigSystem.SaveConfig()
+        
+        if Value then
+            print("Auto Buy Summer Shop đã được bật")
+            
+            -- Tạo vòng lặp Auto Buy
+            _G.autoSummerBuyLoop = spawn(function()
+                while autoSummerBuyEnabled and wait(5) do -- Mua mỗi 5 giây
+                    buySummerItem(selectedSummerItem, selectedSummerAmount)
+                end
+            end)
+        else
+            print("Auto Buy Summer Shop đã được tắt")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.autoSummerBuyLoop then
+                _G.autoSummerBuyLoop:Disconnect()
+                _G.autoSummerBuyLoop = nil
             end
         end
     end
