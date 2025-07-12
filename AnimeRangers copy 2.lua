@@ -6203,6 +6203,35 @@ summerItemPrices = {
     ["Stats Key"] = 50
 }
 
+-- Thêm Paragraph để hiển thị thông tin Status
+summerShopStatusParagraph = SummerShopSection:AddParagraph({
+    Title = "Status",
+    Content = "Đang tải thông tin..."
+})
+
+-- Hàm để cập nhật thông tin Status
+function updateSummerShopStatus()
+    local beachBalls = getBeachBallsCount()
+    local selectedItem = selectedSummerItem
+    local itemPrice = summerItemPrices[selectedItem] or 0
+    local canBuy = math.floor(beachBalls / itemPrice)
+    
+    local content = "Stock: " .. beachBalls .. " Beach Balls\n"
+    content = content .. "Can Buy: " .. canBuy .. " " .. selectedItem
+    
+    -- Cập nhật nội dung Paragraph
+    if summerShopStatusParagraph and summerShopStatusParagraph.SetDesc then
+        summerShopStatusParagraph:SetDesc(content)
+    end
+end
+
+-- Thiết lập vòng lặp cập nhật thông tin Status
+spawn(function()
+    while wait(1) do -- Cập nhật mỗi 1 giây
+        pcall(updateSummerShopStatus)
+    end
+end)
+
 -- Hàm để lấy số lượng Beach Balls của người chơi
 function getBeachBallsCount()
     local success, count = pcall(function()
@@ -6264,6 +6293,11 @@ function buySummerItem(itemName, amount)
         
         SummerShop:FireServer(unpack(args))
         print("Đã gửi yêu cầu mua " .. actualAmount .. " " .. itemName)
+        
+        -- Cập nhật thông tin Status sau khi mua
+        wait(0.5) -- Đợi một chút để dữ liệu cập nhật
+        updateSummerShopStatus()
+        
         return true
     end)
     
@@ -6286,6 +6320,9 @@ SummerShopSection:AddDropdown("SummerItemDropdown", {
         ConfigSystem.CurrentConfig.SelectedSummerItem = Value
         ConfigSystem.SaveConfig()
         print("Đã chọn Summer Item: " .. Value)
+        
+        -- Cập nhật thông tin Status khi đổi item
+        updateSummerShopStatus()
     end
 })
 
@@ -6300,6 +6337,9 @@ SummerShopSection:AddDropdown("SummerAmountDropdown", {
         ConfigSystem.CurrentConfig.SelectedSummerAmount = Value
         ConfigSystem.SaveConfig()
         print("Đã chọn số lượng: " .. Value)
+        
+        -- Cập nhật thông tin Status khi đổi số lượng
+        updateSummerShopStatus()
     end
 })
 
