@@ -514,6 +514,9 @@ ConfigSystem.DefaultConfig = {
 
     -- Cài đặt Portal
     AutoStartPortal = false,
+    
+    -- Cài đặt Path
+    AutoPath = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -669,6 +672,9 @@ local rangerFriendOnly = ConfigSystem.CurrentConfig.RangerFriendOnly or false
 local autoJoinRangerEnabled = ConfigSystem.CurrentConfig.AutoJoinRanger or false
 local autoJoinRangerLoop = nil
 
+-- Biến toàn cục cho Auto Path
+_G.autoPathEnabled = false
+_G.autoPathLoop = nil
 
 -- Biến lưu trạng thái Challenge
 local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
@@ -1817,6 +1823,16 @@ AutoSaveConfig()
 -- Thiết lập events
 setupSaveEvents()
 
+-- Đảm bảo dừng các vòng lặp khi script kết thúc
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == game:GetService("Players").LocalPlayer then
+        if _G.autoPathLoop then
+            _G.autoPathLoop:Disconnect()
+            _G.autoPathLoop = nil
+        end
+    end
+end)
+
 -- Khởi tạo các vòng lặp tối ưu
 local function setupOptimizedLoops()
     -- Vòng lặp kiểm tra Auto Scan Units - sử dụng lại cho nhiều tính năng
@@ -2644,6 +2660,62 @@ ChallengeSection:AddToggle("AutoChallengeToggle", {
 
 -- Thêm section In-Game Controls
 local InGameSection = InGameTab:AddSection("Game Controls")
+
+-- Toggle Auto Path
+InGameSection:AddToggle("AutoPathToggle", {
+    Title = "Auto Path",
+    Default = ConfigSystem.CurrentConfig.AutoPath or false,
+    Callback = function(Value)
+        -- Sử dụng biến toàn cục để tránh vượt quá giới hạn biến local
+        _G.autoPathEnabled = Value
+        ConfigSystem.CurrentConfig.AutoPath = Value
+        ConfigSystem.SaveConfig()
+
+        if Value then
+            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 1 giây")
+
+            -- Hủy vòng lặp cũ nếu có
+            if _G.autoPathLoop then
+                _G.autoPathLoop:Disconnect()
+                _G.autoPathLoop = nil
+            end
+
+            -- Tạo vòng lặp mới
+            _G.autoPathLoop = spawn(function()
+                local currentPath = 1
+                while _G.autoPathEnabled and wait(1) do -- Chuyển đổi mỗi 1 giây
+                    -- Chỉ thực hiện khi đang ở trong map
+                    if isPlayerInMap() then
+                        local args = {
+                            [1] = currentPath
+                        }
+                        
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
+                        end)
+                        
+                        if success then
+                            print("Đã chuyển sang đường đi " .. currentPath)
+                        else
+                            warn("Lỗi khi chuyển đường đi: " .. tostring(err))
+                        end
+                        
+                        -- Chuyển sang đường đi tiếp theo (1-4)
+                        currentPath = currentPath % 4 + 1
+                    end
+                end
+            end)
+        else
+            print("Auto Path đã được tắt")
+
+            -- Hủy vòng lặp nếu có
+            if _G.autoPathLoop then
+                _G.autoPathLoop:Disconnect()
+                _G.autoPathLoop = nil
+            end
+        end
+    end
+})
 
 -- Thêm biến lưu trạng thái Auto TP Lobby
 local autoTPLobbyEnabled = ConfigSystem.CurrentConfig.AutoTPLobby or false
