@@ -438,10 +438,6 @@ ConfigSystem.DefaultConfig = {
     AutoJoinRanger = false,
     RangerTimeDelay = 5,
 
-    -- Cài đặt Boss Event
-    AutoBossEvent = false,
-    BossEventTimeDelay = 5,
-
     -- Cài đặt Challenge
     AutoChallenge = false,
     ChallengeTimeDelay = 5,
@@ -636,7 +632,8 @@ local mapNameMapping = {
     ["Z City"] = "OPM",
     ["Ghoul City"] = "TokyoGhoul",
     ["Night Colosseum"] = "JojoPart1",
-    ["Bizzare Race"] = "BizzareRace"
+    ["Bizzare Race"] = "BizzareRace",
+    ["Spirit Realm"] = "SoulSociety",
 }
 
 -- Mapping ngược lại để hiển thị tên cho người dùng
@@ -1175,7 +1172,7 @@ local function joinMap()
 end
 
 -- Thứ tự các map theo yêu cầu
-local mapOrder = {"OnePiece", "Namek", "DemonSlayer", "Naruto", "OPM", "TokyoGhoul", "JojoPart1", "BizzareRace"}
+local mapOrder = {"OnePiece", "Namek", "DemonSlayer", "Naruto", "OPM", "TokyoGhoul", "JojoPart1", "BizzareRace", "SoulSociety"}
 
 -- Hàm kiểm tra xem người chơi đã hoàn thành map chapter chưa
 local function isChapterCompleted(mapName, chapterNumber)
@@ -1256,7 +1253,7 @@ end
 -- Dropdown để chọn Map
 StorySection:AddDropdown("MapDropdown", {
     Title = "Map",
-    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Bizzare Race" },
+    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Bizzare Race", "Spirit Realm" },
     Multi = false,
     Default = selectedDisplayMap,
     Callback = function(Value)
@@ -1861,20 +1858,19 @@ local function setupOptimizedLoops()
                     shouldContinue = isPlayerInMap()
                 end
 
-                -- Kiểm tra Auto Boss Event
-                if autoBossEventEnabled and not shouldContinue then
-                    joinBossEvent()
-                    wait(1)
-                    shouldContinue = isPlayerInMap()
-                end
-
                 -- Kiểm tra Auto Challenge
                 if autoChallengeEnabled and not shouldContinue then
                     joinChallenge()
                     wait(1)
                     shouldContinue = isPlayerInMap()
                 end
-
+                
+                -- Kiểm tra Auto Boss Rush
+                if autoBossRushEnabled and not shouldContinue then
+                    joinBossRush()
+                    wait(1)
+                    shouldContinue = isPlayerInMap()
+                end
 
                 -- Kiểm tra Auto Join AFK nếu không áp dụng các tính năng trên
                 if autoJoinAFKEnabled and not shouldContinue and not isPlayerInMap() then
@@ -2083,7 +2079,7 @@ storyTimeDelayInput = StorySection:AddInput("StoryTimeDelayInput", {
 -- Dropdown để chọn Map cho Ranger
 RangerSection:AddDropdown("RangerMapDropdown", {
     Title = "Map",        -- Sửa tiêu đề
-    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum" },
+    Values = { "Voocha Village", "Green Planet", "Demon Forest", "Leaf Village", "Z City", "Ghoul City", "Night Colosseum", "Spirit Realm" },
     Multi = true,         -- Cho phép chọn nhiều
     Default = (function() -- Khôi phục trạng thái đã chọn từ config
         local defaults = {}
@@ -5829,122 +5825,69 @@ spawn(function()
     end
 end)
 
--- Thêm section Boss Event trong tab Play
-local BossEventSection = PlayTab:AddSection("Boss Event")
+-- Thêm section BossRush trong tab Play
+local BossRushSection = PlayTab:AddSection("Boss Rush")
 
--- Tạo table toàn cục để lưu trữ các biến Boss Event
-if not _G.BossEventVars then
-    _G.BossEventVars = {
-        autoBossEventEnabled = ConfigSystem.CurrentConfig.AutoBossEvent or false,
-        autoBossEventLoop = nil,
-        bossEventTimeDelay = ConfigSystem.CurrentConfig.BossEventTimeDelay or 5,
-        bossEventTimeDelayInput = nil
-    }
-end
+-- Biến lưu trạng thái BossRush
+autoBossRushEnabled = ConfigSystem.CurrentConfig.AutoBossRush or false
 
--- Hàm để tham gia Boss Event
-local function joinBossEvent()
+-- Hàm để join BossRush
+local function joinBossRush()
     -- Kiểm tra xem người chơi đã ở trong map chưa
     if isPlayerInMap() then
-        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Boss Event")
+        print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Boss Rush")
         return false
     end
 
     local success, err = pcall(function()
-        local args = {
-            "Boss-Event"
+        -- Lấy Event
+        local Event = safeGetPath(game:GetService("ReplicatedStorage"), { "Remote", "Server", "PlayRoom", "Event" }, 2)
+
+        if not Event then
+            warn("Không tìm thấy Event để join Boss Rush")
+            return
+        end
+        
+        -- Bước 1: Gửi "BossRush"
+        local args1 = {
+            [1] = "BossRush"
         }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer(unpack(args))
-        print("Đã tham gia Boss Event")
+        Event:FireServer(unpack(args1))
+        wait(0.5)
+        print("Bước 1: Đã gửi lệnh BossRush")
+
+        -- Bước 2: Gửi "Start"
+        local args2 = {
+            [1] = "Start"
+        }
+        Event:FireServer(unpack(args2))
+        wait(0.5)
+        print("Bước 2: Đã gửi lệnh Start Boss Rush")
     end)
 
     if not success then
-        warn("Lỗi khi tham gia Boss Event: " .. tostring(err))
+        warn("Lỗi khi join Boss Rush: " .. tostring(err))
         return false
     end
 
     return true
 end
 
--- Input cho Boss Event Time Delay
-_G.BossEventVars.bossEventTimeDelayInput = BossEventSection:AddInput("BossEventTimeDelayInput", {
-    Title = "Delay (1-30s)",
-    Placeholder = "Nhập delay",
-    Default = tostring(_G.BossEventVars.bossEventTimeDelay),
-    Numeric = true,
-    Finished = true,
+-- Toggle để bật/tắt Auto Join BossRush
+BossRushSection:AddToggle("AutoBossRushToggle", {
+    Title = "Auto Join Boss Rush",
+    Default = autoBossRushEnabled,
     Callback = function(Value)
-        local numValue = tonumber(Value)
-        if numValue and numValue >= 1 and numValue <= 30 then
-            _G.BossEventVars.bossEventTimeDelay = numValue
-            ConfigSystem.CurrentConfig.BossEventTimeDelay = numValue
-            ConfigSystem.SaveConfig()
-            print("Đã đặt Boss Event Time Delay: " .. numValue .. " giây")
-        else
-            print("Giá trị delay không hợp lệ (1-30)")
-            if _G.BossEventVars.bossEventTimeDelayInput and _G.BossEventVars.bossEventTimeDelayInput.Set then
-                _G.BossEventVars.bossEventTimeDelayInput:Set(tostring(_G.BossEventVars.bossEventTimeDelay))
-            end
-        end
-    end
-})
-
--- Toggle Auto Boss Event
-BossEventSection:AddToggle("AutoBossEventToggle", {
-    Title = "Auto Join Boss Event",
-    Default = ConfigSystem.CurrentConfig.AutoBossEvent or false,
-    Callback = function(Value)
-        _G.BossEventVars.autoBossEventEnabled = Value
-        ConfigSystem.CurrentConfig.AutoBossEvent = Value
+        autoBossRushEnabled = Value
+        ConfigSystem.CurrentConfig.AutoBossRush = Value
         ConfigSystem.SaveConfig()
-
+        
         if Value then
-            -- Kiểm tra ngay lập tức nếu người chơi đang ở trong map
-            if isPlayerInMap() then
-                print("Đang ở trong map, Auto Boss Event sẽ hoạt động khi bạn rời khỏi map")
-            else
-                print("Auto Boss Event đã được bật, sẽ bắt đầu sau " .. _G.BossEventVars.bossEventTimeDelay .. " giây")
-
-                -- Thực hiện join Boss Event sau thời gian delay
-                spawn(function()
-                    wait(_G.BossEventVars.bossEventTimeDelay)
-                    if _G.BossEventVars.autoBossEventEnabled and not isPlayerInMap() then
-                        joinBossEvent()
-                    end
-                end)
-            end
-
-            -- Tạo vòng lặp Auto Join Boss Event
-            if _G.BossEventVars.autoBossEventLoop then
-                _G.BossEventVars.autoBossEventLoop:Disconnect()
-                _G.BossEventVars.autoBossEventLoop = nil
-            end
-
-            _G.BossEventVars.autoBossEventLoop = spawn(function()
-                while _G.BossEventVars.autoBossEventEnabled and wait(10) do -- Thử join Boss Event mỗi 10 giây
-                    if not isPlayerInMap() then
-                        -- Áp dụng time delay
-                        print("Đợi " .. _G.BossEventVars.bossEventTimeDelay .. " giây trước khi join Boss Event")
-                        wait(_G.BossEventVars.bossEventTimeDelay)
-
-                        -- Kiểm tra lại sau khi delay
-                        if _G.BossEventVars.autoBossEventEnabled and not isPlayerInMap() then
-                            joinBossEvent()
-                        end
-                    else
-                        -- Người chơi đang ở trong map, không cần join
-                        print("Đang ở trong map, đợi đến khi người chơi rời khỏi map")
-                    end
-                end
-            end)
+            print("Auto Join Boss Rush đã được bật")
+            -- Tự động join BossRush khi bật toggle
+            joinBossRush()
         else
-            print("Auto Boss Event đã được tắt")
-            
-            -- Hủy vòng lặp nếu có
-            if _G.BossEventVars.autoBossEventLoop then
-                _G.BossEventVars.autoBossEventLoop:Disconnect()
-                _G.BossEventVars.autoBossEventLoop = nil
-            end
+            print("Auto Join Boss Rush đã được tắt")
         end
     end
 })
