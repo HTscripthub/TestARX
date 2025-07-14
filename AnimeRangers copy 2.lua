@@ -1,4 +1,4 @@
-\-- Anime Rangers X Script
+-- Anime Rangers X Script
 
 -- Kiểm tra Place ID
 local currentPlaceId = game.PlaceId
@@ -2666,12 +2666,13 @@ InGameSection:AddToggle("AutoPathToggle", {
     Title = "Auto Path",
     Default = ConfigSystem.CurrentConfig.AutoPath or false,
     Callback = function(Value)
+        -- Sử dụng biến toàn cục để tránh vượt quá giới hạn biến local
         _G.autoPathEnabled = Value
         ConfigSystem.CurrentConfig.AutoPath = Value
         ConfigSystem.SaveConfig()
 
         if Value then
-            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 8 giây")
+            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 5 giây")
 
             -- Hủy vòng lặp cũ nếu có
             if _G.autoPathLoop then
@@ -2681,71 +2682,59 @@ InGameSection:AddToggle("AutoPathToggle", {
 
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
-                wait(3) -- Đợi 3 giây trước khi bắt đầu
                 local currentPath = 1
-                local delayAfterReturn = false -- Cờ để biết có nên delay 5s không
-
-                local player = game:GetService("Players").LocalPlayer
-                local gui = player:WaitForChild("PlayerGui")
-
-                -- Theo dõi nếu xuất hiện GameEndedAnimationUI
-                local guiConnection
-                guiConnection = gui.ChildAdded:Connect(function(child)
-                    if child.Name == "GameEndedAnimationUI" then
-                        print("Phát hiện GameEndedAnimationUI, sẽ chuyển về đường 1 sau 4 giây...")
-                        wait(4)
-
-                        local args = { [1] = 1 }
+                while _G.autoPathEnabled and wait(8) do -- Chuyển đổi mỗi 8 giây
+                    -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
+                    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
+                    if playerGui:FindFirstChild("GameEndedAnimationUI") then
+                        print("Phát hiện game kết thúc, đợi 4 giây và reset về đường 1")
+                        wait(4) -- Đợi 4 giây
+                        currentPath = 1 -- Reset về đường 1
+                        
+                        -- Chuyển về đường 1
+                        local args = {
+                            [1] = currentPath
+                        }
+                        
                         local success, err = pcall(function()
                             game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
                         end)
-
+                        
                         if success then
-                            print("Đã chuyển về đường 1 sau khi phát hiện GameEndedAnimationUI")
-                            delayAfterReturn = true -- Đánh dấu rằng cần delay thêm 5s
+                            print("Đã reset về đường 1 sau khi game kết thúc")
                         else
-                            warn("Lỗi khi chuyển về đường 1: " .. tostring(err))
+                            warn("Lỗi khi reset đường đi: " .. tostring(err))
                         end
+                        
+                        wait(5) -- Đợi thêm 5 giây trước khi tiếp tục vòng lặp
+                        print("Tiếp tục vòng lặp Auto Path sau khi game kết thúc")
                     end
-                end)
-
-                -- Vòng lặp Auto Path
-                while _G.autoPathEnabled do
-                    -- Nếu vừa chuyển về đường 1 thì đợi thêm 5s trước khi tiếp tục
-                    if delayAfterReturn then
-                        print("Chờ thêm 5 giây sau khi trở về đường 1...")
-                        wait(5)
-                        delayAfterReturn = false
-                    end
-
-                    wait(8)
-
+                    
+                    -- Chỉ thực hiện khi đang ở trong map
                     if isPlayerInMap() then
                         local args = {
                             [1] = currentPath
                         }
-
+                        
                         local success, err = pcall(function()
                             game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
                         end)
-
+                        
                         if success then
                             print("Đã chuyển sang đường đi " .. currentPath)
                         else
                             warn("Lỗi khi chuyển đường đi: " .. tostring(err))
                         end
-
+                        
+                        -- Chuyển sang đường đi tiếp theo (1-4)
                         currentPath = currentPath % 4 + 1
                     end
-                end
-
-                if guiConnection then
-                    guiConnection:Disconnect()
                 end
             end)
         else
             print("Auto Path đã được tắt")
 
+            -- Hủy vòng lặp nếu có
             if _G.autoPathLoop then
                 _G.autoPathLoop:Disconnect()
                 _G.autoPathLoop = nil
@@ -4189,6 +4178,24 @@ local function setupWebhookMonitor()
 
                             -- Gửi webhook ngay cả khi không có phần thưởng
                             sendWebhook(rewards)
+
+                            -- Chờ 3 giây trước khi chuyển về đường 1
+                            wait(5)
+
+                            -- Chuyển về đường 1 ngay lập tức
+                            local args = {
+                                [1] = 1 -- Đường 1
+                            }
+                            
+                            local success, err = pcall(function()
+                                game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
+                            end)
+                            
+                            if success then
+                                print("Đã chuyển về đường 1 sau khi gửi webhook")
+                            else
+                                warn("Lỗi khi chuyển về đường 1: " .. tostring(err))
+                            end
                             
                             -- Đợi một thời gian để không gửi lặp lại
                             wait(10)
@@ -4246,21 +4253,6 @@ local function setupWebhookMonitor()
                                 sendWebhook(rewards)
                             end
                             
-                            -- Chuyển về đường 1 ngay lập tức
-                            local args = {
-                                [1] = 1 -- Đường 1
-                            }
-                            
-                            local success, err = pcall(function()
-                                game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
-                            end)
-                            
-                            if success then
-                                print("Đã chuyển về đường 1 sau khi gửi webhook")
-                            else
-                                warn("Lỗi khi chuyển về đường 1: " .. tostring(err))
-                            end
-
                             -- Đợi một thời gian để không gửi lặp lại
                             wait(10)
                             gameEndUIDetected = false
