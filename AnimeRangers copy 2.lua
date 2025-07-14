@@ -672,10 +672,6 @@ local rangerFriendOnly = ConfigSystem.CurrentConfig.RangerFriendOnly or false
 local autoJoinRangerEnabled = ConfigSystem.CurrentConfig.AutoJoinRanger or false
 local autoJoinRangerLoop = nil
 
--- Biến toàn cục cho Auto Path
-_G.autoPathEnabled = false
-_G.autoPathLoop = nil
-
 -- Biến lưu trạng thái Challenge
 local autoChallengeEnabled = ConfigSystem.CurrentConfig.AutoChallenge or false
 local autoChallengeLoop = nil
@@ -2661,6 +2657,10 @@ ChallengeSection:AddToggle("AutoChallengeToggle", {
 -- Thêm section In-Game Controls
 local InGameSection = InGameTab:AddSection("Game Controls")
 
+-- Biến toàn cục cho Auto Path
+_G.autoPathEnabled = false
+_G.autoPathLoop = nil
+
 -- Toggle Auto Path
 InGameSection:AddToggle("AutoPathToggle", {
     Title = "Auto Path",
@@ -2672,7 +2672,7 @@ InGameSection:AddToggle("AutoPathToggle", {
         ConfigSystem.SaveConfig()
 
         if Value then
-            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 1 giây")
+            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 5 giây")
 
             -- Hủy vòng lặp cũ nếu có
             if _G.autoPathLoop then
@@ -2683,7 +2683,7 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(1) do -- Chuyển đổi mỗi 1 giây
+                while _G.autoPathEnabled and wait(5) do -- Chuyển đổi mỗi 5 giây
                     -- Chỉ thực hiện khi đang ở trong map
                     if isPlayerInMap() then
                         local args = {
