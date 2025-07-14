@@ -2682,6 +2682,7 @@ InGameSection:AddToggle("AutoPathToggle", {
 
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
+                wait(3) -- Đợi 3 giây trước khi bắt đầu
                 local currentPath = 1
                 while _G.autoPathEnabled and wait(8) do -- Chuyển đổi mỗi 8 giây
                     -- Chỉ thực hiện khi đang ở trong map
