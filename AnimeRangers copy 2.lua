@@ -4152,22 +4152,6 @@ local function setupWebhookMonitor()
 
                             -- Gửi webhook ngay cả khi không có phần thưởng
                             sendWebhook(rewards)
-                            
-                            -- Chuyển về đường 1 ngay lập tức
-                            local args = {
-                                [1] = 1 -- Đường 1
-                            }
-                            
-                            local success, err = pcall(function()
-                                game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
-                            end)
-                            
-                            if success then
-                                print("Đã chuyển về đường 1 sau khi gửi webhook")
-                            else
-                                warn("Lỗi khi chuyển về đường 1: " .. tostring(err))
-                            end
-                            
                             -- Đợi một thời gian để không gửi lặp lại
                             wait(10)
                             explosionDetected = false -- Reset trạng thái sau khi gửi
@@ -4222,21 +4206,6 @@ local function setupWebhookMonitor()
                             else
                                 print("Trận đấu kết thúc: Thắng lợi")
                                 sendWebhook(rewards)
-                            end
-                            
-                            -- Chuyển về đường 1 ngay lập tức
-                            local args = {
-                                [1] = 1 -- Đường 1
-                            }
-                            
-                            local success, err = pcall(function()
-                                game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
-                            end)
-                            
-                            if success then
-                                print("Đã chuyển về đường 1 sau khi gửi webhook")
-                            else
-                                warn("Lỗi khi chuyển về đường 1: " .. tostring(err))
                             end
 
                             -- Đợi một thời gian để không gửi lặp lại
