@@ -3803,7 +3803,7 @@ end
 
 -- Thông báo khi script đã tải xong
 Fluent:Notify({
-    Title = "HT Hub | Anime Rangers X",
+    Title = "Kaihon | Anime Rangers X",
     Content = "Script đã tải thành công! Đã tối ưu hóa cho trải nghiệm mượt mà.",
     Duration = 3
 })
@@ -3961,18 +3961,18 @@ local function createEmbed(rewards, gameInfo)
 
     -- Tạo embed
     local embed = {
-        title = "Anime Rangers X - HT Hub",
+        title = "Anime Rangers X - Kaihon",
         description = "Game Info",
         color = 5793266, -- Màu tím
         fields = fields,
         thumbnail = {
             url =
-            "https://media.discordapp.net/attachments/1321403790343274597/1364864770699821056/HT_HUB.png?ex=680b38df&is=6809e75f&hm=8a8272215b54db14974319f1745680390342942777e2fc291e38a4be4edf6fda&=&format=webp&quality=lossless&width=930&height=930" -- Logo HT Hub
+            "https://images-ext-1.discordapp.net/external/CmlSOppXAMnvaaK2XVHV8FZlQDakSJQGop2XAPbhPyw/%3Fsize%3D4096/https/cdn.discordapp.com/avatars/1269841484090179636/a6032236a677c176d236a53ac480c586.png?format=webp&quality=lossless&width=900&height=900" -- Logo HT Hub
         },
         footer = {
-            text = "HT Hub | Anime Rangers X • " .. os.date("%x %X"),
+            text = "Kaihon | Anime Rangers X • " .. os.date("%x %X"),
             icon_url =
-            "https://media.discordapp.net/attachments/1321403790343274597/1364864770699821056/HT_HUB.png?ex=680b38df&is=6809e75f&hm=8a8272215b54db14974319f1745680390342942777e2fc291e38a4be4edf6fda&=&format=webp&quality=lossless&width=930&height=930"
+            "https://images-ext-1.discordapp.net/external/CmlSOppXAMnvaaK2XVHV8FZlQDakSJQGop2XAPbhPyw/%3Fsize%3D4096/https/cdn.discordapp.com/avatars/1269841484090179636/a6032236a677c176d236a53ac480c586.png?format=webp&quality=lossless&width=900&height=900"
         },
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }
