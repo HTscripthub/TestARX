@@ -3939,7 +3939,7 @@ local function createEmbed(rewards, gameInfo)
     statsText = "- Name: " .. "||" .. playerName .. "||\n"
 
     -- Luôn hiển thị các tài nguyên chính: Level, Gem, Gold
-    local mainResources = { "Level", "Gem", "Gold", "Beach Balls" }
+    local mainResources = { "Level", "Gem", "BossRushCurrency", "Beach Balls" }
     for _, resourceName in ipairs(mainResources) do
         local value = playerResources[resourceName] or 0
         statsText = statsText .. "- " .. resourceName .. ": " .. value .. "\n"
@@ -4135,7 +4135,7 @@ local function setupWebhookMonitor()
 
     -- Theo dõi khi GameEndedAnimationUI được thêm vào PlayerGui
     spawn(function()
-        while wait(2) do
+        while wait(1) do
             if _G.autoSendWebhookEnabled and isPlayerInMap() then
                 local player = game:GetService("Players").LocalPlayer
                 if player and player:FindFirstChild("PlayerGui") then
@@ -4153,7 +4153,10 @@ local function setupWebhookMonitor()
 
                             -- Gửi webhook ngay cả khi không có phần thưởng
                             sendWebhook(rewards)
-                            
+
+                            -- Chờ 3 giây trước khi chuyển về đường 1
+                            wait(3)
+
                             -- Chuyển về đường 1 ngay lập tức
                             local args = {
                                 [1] = 1 -- Đường 1
