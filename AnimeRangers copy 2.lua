@@ -2680,6 +2680,46 @@ InGameSection:AddToggle("AutoPathToggle", {
                 _G.autoPathLoop = nil
             end
 
+            -- Thiết lập theo dõi GameEndedAnimationUI
+            local player = game:GetService("Players").LocalPlayer
+            if player and player:FindFirstChild("PlayerGui") then
+                spawn(function()
+                    local gameEndConnection
+                    gameEndConnection = player.PlayerGui.ChildAdded:Connect(function(child)
+                        if child.Name == "GameEndedAnimationUI" and _G.autoPathEnabled then
+                            print("Phát hiện GameEndedAnimationUI, đang quay về đường đi 1...")
+                            
+                            -- Đợi một chút để đảm bảo game đã sẵn sàng
+                            wait(1)
+                            
+                            -- Quay về đường đi 1
+                            local args = {
+                                1
+                            }
+                            
+                            local success, err = pcall(function()
+                                game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
+                            end)
+                            
+                            if success then
+                                print("Đã quay về đường đi 1 sau khi phát hiện GameEndedAnimationUI")
+                            else
+                                warn("Lỗi khi quay về đường đi 1: " .. tostring(err))
+                            end
+                        end
+                    end)
+                    
+                    -- Hủy kết nối khi Auto Path bị tắt
+                    while _G.autoPathEnabled do
+                        wait(1)
+                    end
+                    
+                    if gameEndConnection then
+                        gameEndConnection:Disconnect()
+                    end
+                end)
+            end
+
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
