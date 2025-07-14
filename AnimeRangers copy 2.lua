@@ -4132,23 +4132,22 @@ local function setupWebhookMonitor()
         end
     end)
 
-    -- Thêm một kết nối để theo dõi khi Visual folder thay đổi
+    -- Theo dõi khi GameEndedAnimationUI được thêm vào PlayerGui
     spawn(function()
         while wait(2) do
             if _G.autoSendWebhookEnabled and isPlayerInMap() then
-                local visualFolder = workspace:FindFirstChild("Visual")
-                if visualFolder then
+                local player = game:GetService("Players").LocalPlayer
+                if player and player:FindFirstChild("PlayerGui") then
                     local connection
-                    connection = visualFolder.ChildAdded:Connect(function(child)
-                        if child.Name == "Base_Explosion2" and not explosionDetected then
+                    connection = player.PlayerGui.ChildAdded:Connect(function(child)
+                        if child.Name == "GameEndedAnimationUI" and not explosionDetected then
                             explosionDetected = true
-                            print("Phát hiện Base_Explosion2 mới, đang gửi webhook...")
+                            print("Phát hiện GameEndedAnimationUI mới, đang gửi webhook...")
 
                             -- Đợi một chút để đảm bảo rewards đã được cập nhật
                             wait(1)
 
                             -- Lấy phần thưởng và gửi webhook
-                            local player = game:GetService("Players").LocalPlayer
                             local rewards = getRewards()
 
                             -- Gửi webhook ngay cả khi không có phần thưởng
