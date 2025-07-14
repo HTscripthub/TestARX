@@ -2683,7 +2683,7 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(8) do -- Chuyển đổi mỗi 8 giây
+                while _G.autoPathEnabled and wait(3) do -- Chuyển đổi mỗi 3 giây
                     -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
                     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
                     if playerGui:FindFirstChild("GameEndedAnimationUI") then
@@ -2712,6 +2712,33 @@ InGameSection:AddToggle("AutoPathToggle", {
                     
                     -- Chỉ thực hiện khi đang ở trong map
                     if isPlayerInMap() then
+                        -- Kiểm tra giá trị BossRush.Fase để xác định đường đi tối đa
+                        local maxPath = 4 -- Mặc định là 4 đường
+                        local success, faseValue = pcall(function()
+                            return game:GetService("ReplicatedStorage").Values.Game.BossRush.Fase.Value
+                        end)
+                        
+                        if success then
+                            if faseValue >= 1 and faseValue <= 3 then
+                                maxPath = 2 -- Chỉ đi đường 1-2
+                                print("Fase " .. faseValue .. ": Giới hạn đường đi 1-2")
+                            elseif faseValue >= 4 and faseValue <= 6 then
+                                maxPath = 3 -- Đi đường 1-2-3
+                                print("Fase " .. faseValue .. ": Giới hạn đường đi 1-3")
+                            elseif faseValue >= 7 then
+                                maxPath = 4 -- Đi đường 1-2-3-4
+                                print("Fase " .. faseValue .. ": Cho phép đi tất cả các đường 1-4")
+                            end
+                        else
+                            warn("Không thể đọc giá trị BossRush.Fase, sử dụng mặc định (1-4)")
+                        end
+                        
+                        -- Kiểm tra nếu đường đi hiện tại vượt quá giới hạn thì reset về 1
+                        if currentPath > maxPath then
+                            currentPath = 1
+                            print("Đã reset về đường 1 do vượt quá giới hạn đường đi cho fase hiện tại")
+                        end
+                        
                         local args = {
                             [1] = currentPath
                         }
@@ -2726,8 +2753,8 @@ InGameSection:AddToggle("AutoPathToggle", {
                             warn("Lỗi khi chuyển đường đi: " .. tostring(err))
                         end
                         
-                        -- Chuyển sang đường đi tiếp theo (1-4)
-                        currentPath = currentPath % 4 + 1
+                        -- Tính toán đường đi tiếp theo dựa trên maxPath
+                        currentPath = currentPath % maxPath + 1
                     end
                 end
             end)
