@@ -2683,7 +2683,7 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(3) do -- Chuyển đổi mỗi 3 giây
+                while _G.autoPathEnabled and wait(2) do -- Chuyển đổi mỗi 2 giây
                     -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
                     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
                     if playerGui:FindFirstChild("GameEndedAnimationUI") then
