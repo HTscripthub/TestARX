@@ -3452,7 +3452,7 @@ InGameTab:AddToggle("AutoPlaceBossRushToggle", {
         -- Tạo vòng lặp mới nếu bật
         if Value then
             _G.AutoPlaceBossRushLoop = spawn(function()
-                while wait(2) do -- Thực hiện mỗi 2 giây
+                while wait(4) do -- Thực hiện mỗi 4 giây
                     if not ConfigSystem.CurrentConfig.AutoPlaceBossRush then break end
                     
                     -- Chỉ thực hiện khi đang ở trong map
@@ -3472,7 +3472,7 @@ InGameTab:AddToggle("AutoPlaceBossRushToggle", {
                                     game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
                                 end)
                                 
-                                wait(2) -- Đợi 2 giây giữa mỗi lần place
+                                wait(4) -- Đợi 4 giây giữa mỗi lần place
                             end
                         end
                     end
