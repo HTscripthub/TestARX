@@ -517,7 +517,6 @@ ConfigSystem.DefaultConfig = {
     
     -- Cài đặt Path
     AutoPath = false,
-    AutoPlaceUnits = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -1827,11 +1826,6 @@ game:GetService("Players").PlayerRemoving:Connect(function(player)
             _G.autoPathLoop:Disconnect()
             _G.autoPathLoop = nil
         end
-        
-        if _G.autoPlaceUnitsLoop then
-            _G.autoPlaceUnitsLoop:Disconnect()
-            _G.autoPlaceUnitsLoop = nil
-        end
     end
 end)
 
@@ -2666,52 +2660,41 @@ local InGameSection = InGameTab:AddSection("Game Controls")
 -- Biến toàn cục cho Auto Path
 _G.autoPathEnabled = false
 _G.autoPathLoop = nil
+_G.autoPlaceUnitEnabled = ConfigSystem.CurrentConfig.AutoPath or false -- Thêm biến cho chức năng đặt unit tự động
 
--- Biến toàn cục cho Auto Place Units
-_G.autoPlaceUnitsEnabled = ConfigSystem.CurrentConfig.AutoPlaceUnits or false
-_G.autoPlaceUnitsLoop = nil
+-- Biến lưu trữ unit index hiện tại cho Auto Path
+_G.currentUnitIndex = 1
 
--- Định nghĩa các hàm liên quan đến Auto Place Units trong _G để giảm số lượng biến local
-_G.getPlayerUnits = function()
+-- Hàm để đặt unit tự động theo priority từ trên xuống dưới
+_G.placeUnitByPriority = function()
     local player = game:GetService("Players").LocalPlayer
-    if not player then return {} end
-    
     local unitsFolder = player:FindFirstChild("UnitsFolder")
-    if not unitsFolder then return {} end
     
-    local unitsList = {}
-    for _, unit in pairs(unitsFolder:GetChildren()) do
-        table.insert(unitsList, unit.Name)
-    end
-    
-    return unitsList
-end
-
-_G.placeUnit = function(unitName)
-    local args = {
-        [1] = game:GetService("ReplicatedStorage"):WaitForChild("Player_Data"):WaitForChild(game.Players.LocalPlayer.Name):WaitForChild("Collection"):WaitForChild(unitName)
-    }
-    
-    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
-    print("Đã place unit: " .. unitName)
-end
-
--- Toggle Auto Place Units
-InGameSection:AddToggle("AutoPlaceUnitsToggle", {
-    Title = "Auto Place Units",
-    Default = _G.autoPlaceUnitsEnabled,
-    Callback = function(Value)
-        _G.autoPlaceUnitsEnabled = Value
-        ConfigSystem.CurrentConfig.AutoPlaceUnits = Value
-        ConfigSystem.SaveConfig()
+    if unitsFolder and #unitsFolder:GetChildren() > 0 then
+        -- Lấy danh sách units
+        local units = unitsFolder:GetChildren()
         
-        if Value then
-            print("Auto Place Units đã được bật, sẽ tự động place units khi chuyển đường")
-        else
-            print("Auto Place Units đã được tắt")
+        -- Kiểm tra và đảm bảo index hợp lệ
+        if _G.currentUnitIndex > #units then
+            _G.currentUnitIndex = 1
         end
+        
+        -- Lấy unit theo index hiện tại
+        local unitName = units[_G.currentUnitIndex].Name
+        
+        -- Thực hiện đặt unit
+        pcall(function()
+            local args = {
+                [1] = game:GetService("ReplicatedStorage"):WaitForChild("Player_Data"):WaitForChild(player.Name):WaitForChild("Collection"):WaitForChild(unitName)
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
+            print("Đã đặt unit: " .. unitName .. " (index: " .. _G.currentUnitIndex .. "/" .. #units .. ")")
+        end)
+        
+        -- Tăng index cho lần tiếp theo
+        _G.currentUnitIndex = _G.currentUnitIndex + 1
     end
-})
+end
 
 -- Toggle Auto Path
 InGameSection:AddToggle("AutoPathToggle", {
@@ -2720,6 +2703,7 @@ InGameSection:AddToggle("AutoPathToggle", {
     Callback = function(Value)
         -- Sử dụng biến toàn cục để tránh vượt quá giới hạn biến local
         _G.autoPathEnabled = Value
+        _G.autoPlaceUnitEnabled = Value
         ConfigSystem.CurrentConfig.AutoPath = Value
         ConfigSystem.SaveConfig()
 
@@ -2735,13 +2719,14 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(2) do -- Chuyển đổi mỗi 2 giây
+                while _G.autoPathEnabled and wait(3) do -- Chuyển đổi mỗi 3 giây
                     -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
                     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
                     if playerGui:FindFirstChild("GameEndedAnimationUI") then
                         print("Phát hiện game kết thúc, đợi 4 giây và reset về đường 1")
                         wait(4) -- Đợi 4 giây
                         currentPath = 1 -- Reset về đường 1
+                        _G.currentUnitIndex = 1 -- Reset unit index
                         
                         -- Chuyển về đường 1
                         local args = {
@@ -2802,25 +2787,10 @@ InGameSection:AddToggle("AutoPathToggle", {
                         if success then
                             print("Đã chuyển sang đường đi " .. currentPath)
                             
-                            -- Nếu Auto Place Units được bật, thực hiện place units sau khi chuyển đường
-                            if _G.autoPlaceUnitsEnabled then
-                                print("Đang thực hiện Auto Place Units sau khi chuyển đường...")
-                                
-                                -- Sử dụng pcall để bắt lỗi
-                                pcall(function()
-                                    -- Đợi 0.5 giây sau khi chuyển đường
-                                    wait(2.5)
-                                    
-                                    -- Lấy danh sách units
-                                    local units = _G.getPlayerUnits()
-                                    
-                                    -- Place từng unit theo thứ tự
-                                    for _, unitName in ipairs(units) do
-                                        if not _G.autoPlaceUnitsEnabled or not _G.autoPathEnabled then break end
-                                        _G.placeUnit(unitName)
-                                        wait(2.5) -- Đợi 2.5 giây giữa mỗi lần place
-                                    end
-                                end)
+                            -- Thêm: Đặt unit tự động sau khi chuyển đường
+                            if _G.autoPlaceUnitEnabled then
+                                wait(0.5) -- Đợi 0.5 giây sau khi chuyển đường
+                                _G.placeUnitByPriority()
                             end
                         else
                             warn("Lỗi khi chuyển đường đi: " .. tostring(err))
