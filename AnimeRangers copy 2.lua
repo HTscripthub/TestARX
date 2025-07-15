@@ -2770,110 +2770,6 @@ InGameSection:AddToggle("AutoPathToggle", {
     end
 })
 
--- Thêm section Auto Place Boss Rush
-local AutoPlaceBossRushSection = InGameTab:AddSection("Auto Place Boss Rush")
-
--- Khởi tạo các biến toàn cục cho Auto Place Boss Rush
-_G.autoBossRushPlaceEnabled = ConfigSystem.CurrentConfig.AutoPlaceBossRush or false
-_G.unitPriorities = ConfigSystem.CurrentConfig.UnitPriorities or {}
-
--- Chỉ thêm các UI components cơ bản trước, các chức năng sẽ được thêm sau
--- Label hiển thị danh sách ưu tiên
-_G.priorityListLabel = AutoPlaceBossRushSection:AddParagraph({
-    Title = "Danh Sách Ưu Tiên",
-    Content = "Chưa có unit nào trong danh sách ưu tiên"
-})
-
--- Thêm nút Scan Units
-AutoPlaceBossRushSection:AddButton({
-    Title = "Scan Units",
-    Callback = function()
-        if not _G.getUnitsFromFolder then return end
-        local units = _G.getUnitsFromFolder()
-        if #units == 0 then
-            print("Không tìm thấy unit nào trong UnitsFolder. Hãy vào map trước!")
-            return
-        end
-        
-        print("Đã tìm thấy " .. #units .. " unit trong UnitsFolder:")
-        for i, unit in ipairs(units) do
-            print(i .. ". " .. unit)
-        end
-    end
-})
-
--- Input để thêm unit vào danh sách ưu tiên
-AutoPlaceBossRushSection:AddInput("AddUnitInput", {
-    Title = "Thêm Unit vào Danh Sách",
-    Placeholder = "Nhập tên unit",
-    Numeric = false,
-    Finished = true,
-    Callback = function(Value)
-        if not _G.updatePriorityList then return end
-        if Value and Value ~= "" then
-            table.insert(_G.unitPriorities, Value)
-            ConfigSystem.CurrentConfig.UnitPriorities = _G.unitPriorities
-            ConfigSystem.SaveConfig()
-            print("Đã thêm unit " .. Value .. " vào danh sách ưu tiên")
-            _G.updatePriorityList()
-        end
-    end
-})
-
--- Input để xóa unit khỏi danh sách ưu tiên theo vị trí
-AutoPlaceBossRushSection:AddInput("RemoveUnitInput", {
-    Title = "Xóa Unit theo Vị Trí",
-    Placeholder = "Nhập số thứ tự",
-    Numeric = true,
-    Finished = true,
-    Callback = function(Value)
-        if not _G.updatePriorityList then return end
-        local index = tonumber(Value)
-        if index and _G.unitPriorities[index] then
-            local unitName = _G.unitPriorities[index]
-            table.remove(_G.unitPriorities, index)
-            ConfigSystem.CurrentConfig.UnitPriorities = _G.unitPriorities
-            ConfigSystem.SaveConfig()
-            print("Đã xóa unit " .. unitName .. " khỏi danh sách ưu tiên")
-            _G.updatePriorityList()
-        else
-            print("Vị trí không hợp lệ")
-        end
-    end
-})
-
--- Toggle để bật/tắt Auto Place Boss Rush
-AutoPlaceBossRushSection:AddToggle("AutoPlaceBossRushToggle", {
-    Title = "Auto Place Boss Rush",
-    Default = _G.autoBossRushPlaceEnabled,
-    Callback = function(Value)
-        _G.autoBossRushPlaceEnabled = Value
-        ConfigSystem.CurrentConfig.AutoPlaceBossRush = Value
-        ConfigSystem.SaveConfig()
-        
-        if Value then
-            print("Auto Place Boss Rush đã được bật")
-            
-            -- Khôi phục danh sách ưu tiên từ cấu hình
-            if ConfigSystem.CurrentConfig.UnitPriorities then
-                _G.unitPriorities = ConfigSystem.CurrentConfig.UnitPriorities
-                if _G.updatePriorityList then _G.updatePriorityList() end
-            end
-            
-            -- Bắt đầu vòng lặp đặt unit
-            if _G.startBossRushPlaceLoop then _G.startBossRushPlaceLoop() end
-        else
-            print("Auto Place Boss Rush đã được tắt")
-            
-            -- Dừng vòng lặp đặt unit
-            if _G.stopBossRushPlaceLoop then _G.stopBossRushPlaceLoop() end
-        end
-    end
-})
-
--- Chúng ta sẽ khởi tạo các hàm chức năng sau khi script đã chạy
--- để tránh vượt quá giới hạn biến cục bộ
-
 -- Thêm biến lưu trạng thái Auto TP Lobby
 local autoTPLobbyEnabled = ConfigSystem.CurrentConfig.AutoTPLobby or false
 local autoTPLobbyDelay = ConfigSystem.CurrentConfig.AutoTPLobbyDelay or 10 -- Mặc định 10 phút
@@ -3527,6 +3423,61 @@ UnitsUpdateSection:AddToggle("AutoUpdateRandomToggle", {
                 autoUpdateRandomLoop:Disconnect()
                 autoUpdateRandomLoop = nil
             end
+        end
+    end
+})
+
+-- Thêm nút Auto Place Boss Rush trong tab In-Game
+InGameTab:AddToggle("AutoPlaceBossRushToggle", {
+    Title = "Auto Place Boss Rush",
+    Default = ConfigSystem.CurrentConfig.AutoPlaceBossRush or false,
+    Callback = function(Value)
+        -- Lưu cấu hình
+        ConfigSystem.CurrentConfig.AutoPlaceBossRush = Value
+        ConfigSystem.SaveConfig()
+        
+        -- Hiển thị thông báo
+        Fluent:Notify({
+            Title = "Auto Place Boss Rush",
+            Content = Value and "Auto Place Boss Rush đã được bật" or "Auto Place Boss Rush đã được tắt",
+            Duration = 2
+        })
+        
+        -- Hủy vòng lặp cũ nếu có
+        if _G.AutoPlaceBossRushLoop then
+            _G.AutoPlaceBossRushLoop:Disconnect()
+            _G.AutoPlaceBossRushLoop = nil
+        end
+        
+        -- Tạo vòng lặp mới nếu bật
+        if Value then
+            _G.AutoPlaceBossRushLoop = spawn(function()
+                while wait(2) do -- Thực hiện mỗi 2 giây
+                    if not ConfigSystem.CurrentConfig.AutoPlaceBossRush then break end
+                    
+                    -- Chỉ thực hiện khi đang ở trong map
+                    if isPlayerInMap() then
+                        -- Lấy danh sách unit
+                        local player = game:GetService("Players").LocalPlayer
+                        if player and player:FindFirstChild("UnitsFolder") then
+                            for _, unit in pairs(player.UnitsFolder:GetChildren()) do
+                                if not ConfigSystem.CurrentConfig.AutoPlaceBossRush then break end
+                                
+                                -- Place unit
+                                pcall(function()
+                                    local args = {
+                                        [1] = game:GetService("ReplicatedStorage"):WaitForChild("Player_Data"):WaitForChild(player.Name):WaitForChild("Collection"):WaitForChild(unit.Name)
+                                    }
+                                    
+                                    game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
+                                end)
+                                
+                                wait(2) -- Đợi 2 giây giữa mỗi lần place
+                            end
+                        end
+                    end
+                end
+            end)
         end
     end
 })
@@ -6306,7 +6257,7 @@ EventSection = PlayTab:AddSection("Event")
 autoJoinSummerEnabled = ConfigSystem.CurrentConfig.AutoJoinSummer or false
 
 -- Hàm để join Summer Event
-function joinSummerEvent()
+local function joinSummerEvent()
     -- Kiểm tra xem người chơi đã ở trong map chưa
     if isPlayerInMap() then
         print("Đã phát hiện người chơi đang ở trong map, không thực hiện join Summer Event")
@@ -6665,108 +6616,3 @@ SpeedSection:AddToggle("SpeedToggle", {
         end
     end
 })
-
--- Khởi tạo chức năng Auto Place Boss Rush
-spawn(function()
-    -- Đợi 1 giây để đảm bảo script đã chạy và các biến đã được khởi tạo
-    wait(1)
-    
-    -- Hàm để lấy danh sách unit từ UnitsFolder
-    _G.getUnitsFromFolder = function()
-        local player = game:GetService("Players").LocalPlayer
-        if not player then return {} end
-        
-        local unitsFolder = player:FindFirstChild("UnitsFolder")
-        if not unitsFolder then return {} end
-        
-        local units = {}
-        for _, unit in pairs(unitsFolder:GetChildren()) do
-            table.insert(units, unit.Name)
-        end
-        
-        return units
-    end
-
-    -- Hàm để đặt unit theo tên
-    _G.placeUnit = function(unitName)
-        local success, err = pcall(function()
-            local playerName = game:GetService("Players").LocalPlayer.Name
-            
-            local args = {
-                [1] = game:GetService("ReplicatedStorage"):WaitForChild("Player_Data"):WaitForChild(playerName):WaitForChild("Collection"):WaitForChild(unitName)
-            }
-            
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
-            
-            print("Đã đặt unit: " .. unitName)
-        end)
-        
-        if not success then
-            warn("Lỗi khi đặt unit " .. unitName .. ": " .. tostring(err))
-            return false
-        end
-        
-        return true
-    end
-
-    -- Hàm để cập nhật danh sách ưu tiên
-    _G.updatePriorityList = function()
-        if not _G.priorityListLabel then return end
-        
-        local priorityText = "Danh sách ưu tiên:\n"
-        for i, unitName in ipairs(_G.unitPriorities) do
-            priorityText = priorityText .. i .. ". " .. unitName .. "\n"
-        end
-        
-        if #_G.unitPriorities == 0 then
-            priorityText = "Chưa có unit nào trong danh sách ưu tiên"
-        end
-        
-        _G.priorityListLabel:SetDesc(priorityText)
-    end
-    
-    -- Hàm để bắt đầu vòng lặp đặt unit
-    _G.startBossRushPlaceLoop = function()
-        -- Hủy vòng lặp cũ nếu có
-        if _G.autoBossRushPlaceLoop then
-            _G.autoBossRushPlaceLoop:Disconnect()
-            _G.autoBossRushPlaceLoop = nil
-        end
-        
-        -- Tạo vòng lặp mới
-        _G.autoBossRushPlaceLoop = spawn(function()
-            while _G.autoBossRushPlaceEnabled and wait(2) do -- Thực hiện mỗi 2 giây
-                -- Chỉ thực hiện khi đang ở trong map
-                if isPlayerInMap() then
-                    -- Lặp qua danh sách ưu tiên và đặt unit
-                    for _, unitName in ipairs(_G.unitPriorities) do
-                        if _G.autoBossRushPlaceEnabled then
-                            _G.placeUnit(unitName)
-                            wait(0.5) -- Đợi 0.5 giây giữa các lần đặt unit
-                        else
-                            break
-                        end
-                    end
-                end
-            end
-        end)
-    end
-    
-    -- Hàm để dừng vòng lặp đặt unit
-    _G.stopBossRushPlaceLoop = function()
-        if _G.autoBossRushPlaceLoop then
-            _G.autoBossRushPlaceLoop:Disconnect()
-            _G.autoBossRushPlaceLoop = nil
-        end
-    end
-    
-    -- Cập nhật danh sách ưu tiên ban đầu
-    _G.updatePriorityList()
-    
-    -- Khởi động Auto Place Boss Rush nếu được bật
-    if _G.autoBossRushPlaceEnabled then
-        _G.startBossRushPlaceLoop()
-    end
-    
-    print("Đã khởi tạo chức năng Auto Place Boss Rush")
-end)
