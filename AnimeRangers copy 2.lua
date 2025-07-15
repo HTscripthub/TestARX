@@ -2683,12 +2683,12 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(3) do -- Chuyển đổi mỗi 3 giây
+                while _G.autoPathEnabled and wait(1) do -- Chuyển đổi mỗi 1 giây
                     -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
                     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
                     if playerGui:FindFirstChild("GameEndedAnimationUI") then
                         print("Phát hiện game kết thúc, đợi 4 giây và reset về đường 1")
-                        wait(4) -- Đợi 4 giây
+                        wait(3) -- Đợi 4 giây
                         currentPath = 1 -- Reset về đường 1
                         
                         -- Chuyển về đường 1
@@ -3452,7 +3452,7 @@ InGameTab:AddToggle("AutoPlaceBossRushToggle", {
         -- Tạo vòng lặp mới nếu bật
         if Value then
             _G.AutoPlaceBossRushLoop = spawn(function()
-                while wait(4) do -- Thực hiện mỗi 4 giây
+                while wait(2) do -- Thực hiện mỗi 4 giây
                     if not ConfigSystem.CurrentConfig.AutoPlaceBossRush then break end
                     
                     -- Chỉ thực hiện khi đang ở trong map
@@ -3472,7 +3472,7 @@ InGameTab:AddToggle("AutoPlaceBossRushToggle", {
                                     game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
                                 end)
                                 
-                                wait(4) -- Đợi 4 giây giữa mỗi lần place
+                                wait(2) -- Đợi 4 giây giữa mỗi lần place
                             end
                         end
                     end
