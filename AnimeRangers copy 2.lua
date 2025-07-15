@@ -5996,7 +5996,7 @@ local function joinBossRush()
             [1] = "BossRush"
         }
         Event:FireServer(unpack(args1))
-        wait(0.5)
+        wait(5)
         print("Bước 1: Đã gửi lệnh BossRush")
 
         -- Bước 2: Gửi "Start"
