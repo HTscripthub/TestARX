@@ -517,6 +517,7 @@ ConfigSystem.DefaultConfig = {
     
     -- Cài đặt Path
     AutoPath = false,
+    AutoPathDelay = 3, -- Mặc định 3 giây
 
     -- Cài đặt Boss Rush Shop
     SelectedBossRushItem = "Trait Reroll",
@@ -2665,6 +2666,7 @@ local InGameSection = InGameTab:AddSection("Game Controls")
 -- Biến toàn cục cho Auto Path
 _G.autoPathEnabled = false
 _G.autoPathLoop = nil
+_G.autoPathDelay = ConfigSystem.CurrentConfig.AutoPathDelay or 3 -- Thêm biến cho delay của auto path (mặc định 3 giây)
 _G.autoPlaceUnitEnabled = ConfigSystem.CurrentConfig.AutoPath or false -- Thêm biến cho chức năng đặt unit tự động
 
 -- Biến lưu trữ unit index hiện tại cho Auto Path
@@ -2701,6 +2703,26 @@ _G.placeUnitByPriority = function()
     end
 end
 
+-- Input cho Auto Path Delay
+InGameSection:AddInput("AutoPathDelayInput", {
+    Title = "Path Delay (1-30s)",
+    Placeholder = "Nhập giây",
+    Default = tostring(_G.autoPathDelay),
+    Numeric = true,
+    Finished = true,
+    Callback = function(Value)
+        local numValue = tonumber(Value)
+        if numValue and numValue >= 1 and numValue <= 30 then
+            _G.autoPathDelay = numValue
+            ConfigSystem.CurrentConfig.AutoPathDelay = numValue
+            ConfigSystem.SaveConfig()
+            print("Đã đặt Auto Path Delay: " .. numValue .. " giây")
+        else
+            print("Giá trị delay không hợp lệ (1-30 giây)")
+        end
+    end
+})
+
 -- Toggle Auto Path
 InGameSection:AddToggle("AutoPathToggle", {
     Title = "Auto Path",
@@ -2713,7 +2735,7 @@ InGameSection:AddToggle("AutoPathToggle", {
         ConfigSystem.SaveConfig()
 
         if Value then
-            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi 5 giây")
+            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi " .. _G.autoPathDelay .. " giây")
 
             -- Hủy vòng lặp cũ nếu có
             if _G.autoPathLoop then
@@ -2724,7 +2746,7 @@ InGameSection:AddToggle("AutoPathToggle", {
             -- Tạo vòng lặp mới
             _G.autoPathLoop = spawn(function()
                 local currentPath = 1
-                while _G.autoPathEnabled and wait(3) do -- Chuyển đổi mỗi 3 giây
+                while _G.autoPathEnabled and wait(_G.autoPathDelay) do -- Chuyển đổi theo thời gian đã cài đặt
                     -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
                     local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
                     if playerGui:FindFirstChild("GameEndedAnimationUI") then
