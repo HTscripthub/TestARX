@@ -517,6 +517,11 @@ ConfigSystem.DefaultConfig = {
     
     -- Cài đặt Path
     AutoPath = false,
+
+    -- Cài đặt Boss Rush Shop
+    SelectedBossRushItem = "Trait Reroll",
+    SelectedBossRushAmount = "1",
+    AutoBossRushBuy = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -6505,6 +6510,197 @@ SummerShopSection:AddToggle("AutoSummerBuyToggle", {
             if _G.autoSummerBuyLoop then
                 _G.autoSummerBuyLoop:Disconnect()
                 _G.autoSummerBuyLoop = nil
+            end
+        end
+    end
+})
+
+-- Thêm section Boss Rush Shop trong tab Shop
+BossRushShopSection = ShopTab:AddSection("Boss Rush Shop")
+
+-- Biến lưu trạng thái Boss Rush Shop
+selectedBossRushItem = ConfigSystem.CurrentConfig.SelectedBossRushItem or "Trait Reroll"
+selectedBossRushAmount = ConfigSystem.CurrentConfig.SelectedBossRushAmount or "1"
+autoBossRushBuyEnabled = ConfigSystem.CurrentConfig.AutoBossRushBuy or false
+
+-- Giá của các item Boss Rush Shop
+bossRushItemPrices = {
+    ["Trait Reroll"] = 5
+}
+
+-- Thêm Paragraph để hiển thị thông tin Status
+bossRushShopStatusParagraph = BossRushShopSection:AddParagraph({
+    Title = "Status",
+    Content = "Đang tải thông tin..."
+})
+
+-- Hàm để cập nhật thông tin Status
+function updateBossRushShopStatus()
+    local bossRushCurrency = getBossRushCurrencyCount()
+    local selectedItem = selectedBossRushItem
+    local itemPrice = bossRushItemPrices[selectedItem] or 0
+    local canBuy = math.floor(bossRushCurrency / itemPrice)
+    
+    local content = "Stock: " .. bossRushCurrency .. " BossRushCurrency\n"
+    content = content .. "Can Buy: " .. canBuy .. " " .. selectedItem
+    
+    -- Cập nhật nội dung Paragraph
+    if bossRushShopStatusParagraph and bossRushShopStatusParagraph.SetDesc then
+        bossRushShopStatusParagraph:SetDesc(content)
+    end
+end
+
+-- Thiết lập vòng lặp cập nhật thông tin Status
+spawn(function()
+    while wait(1) do -- Cập nhật mỗi 1 giây
+        pcall(updateBossRushShopStatus)
+    end
+end)
+
+-- Hàm để lấy số lượng BossRushCurrency của người chơi
+function getBossRushCurrencyCount()
+    local success, count = pcall(function()
+        local playerName = game:GetService("Players").LocalPlayer.Name
+        local bossRushCurrency = game:GetService("ReplicatedStorage").Player_Data[playerName].Data["BossRushCurrency"]
+        
+        if bossRushCurrency and bossRushCurrency:IsA("NumberValue") then
+            return bossRushCurrency.Value
+        end
+        return 0
+    end)
+    
+    if not success then
+        warn("Lỗi khi lấy số lượng BossRushCurrency: " .. tostring(count))
+        return 0
+    end
+    
+    return count
+end
+
+-- Hàm để mua item từ Boss Rush Shop
+function buyBossRushItem(itemName, amount)
+    local success, err = pcall(function()
+        local BossRushExchange = safeGetPath(game:GetService("ReplicatedStorage"), {"Remote", "Server", "Gameplay", "BossRushExchange"}, 2)
+        
+        if not BossRushExchange then
+            warn("Không tìm thấy Remote BossRushExchange")
+            return false
+        end
+        
+        -- Nếu amount là "All", tính toán số lượng tối đa có thể mua
+        local actualAmount = amount
+        if amount == "All" then
+            local bossRushCurrency = getBossRushCurrencyCount()
+            local itemPrice = bossRushItemPrices[itemName] or 0
+            
+            if itemPrice <= 0 then
+                warn("Không tìm thấy giá của item: " .. itemName)
+                return false
+            end
+            
+            actualAmount = math.floor(bossRushCurrency / itemPrice)
+            print("Số BossRushCurrency hiện có: " .. bossRushCurrency .. ", có thể mua tối đa " .. actualAmount .. " " .. itemName)
+            
+            if actualAmount <= 0 then
+                print("Không đủ BossRushCurrency để mua " .. itemName)
+                return false
+            end
+        else
+            -- Chuyển đổi từ chuỗi sang số
+            actualAmount = tonumber(amount)
+        end
+        
+        -- Gửi yêu cầu mua
+        local args = {
+            [1] = itemName,
+            [2] = actualAmount
+        }
+        
+        BossRushExchange:FireServer(unpack(args))
+        print("Đã gửi yêu cầu mua " .. actualAmount .. " " .. itemName)
+        
+        -- Cập nhật thông tin Status sau khi mua
+        wait(0.5) -- Đợi một chút để dữ liệu cập nhật
+        updateBossRushShopStatus()
+        
+        return true
+    end)
+    
+    if not success then
+        warn("Lỗi khi mua item Boss Rush Shop: " .. tostring(err))
+        return false
+    end
+    
+    return true
+end
+
+-- Dropdown để chọn Boss Rush Item
+BossRushShopSection:AddDropdown("BossRushItemDropdown", {
+    Title = "Select Item",
+    Values = {"Trait Reroll"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedBossRushItem or "Trait Reroll",
+    Callback = function(Value)
+        selectedBossRushItem = Value
+        ConfigSystem.CurrentConfig.SelectedBossRushItem = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn Boss Rush Item: " .. Value)
+        
+        -- Cập nhật thông tin Status khi đổi item
+        updateBossRushShopStatus()
+    end
+})
+
+-- Dropdown để chọn số lượng
+BossRushShopSection:AddDropdown("BossRushAmountDropdown", {
+    Title = "Amount",
+    Values = {"1", "5", "100", "All"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedBossRushAmount or "1",
+    Callback = function(Value)
+        selectedBossRushAmount = Value
+        ConfigSystem.CurrentConfig.SelectedBossRushAmount = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn số lượng: " .. Value)
+        
+        -- Cập nhật thông tin Status khi đổi số lượng
+        updateBossRushShopStatus()
+    end
+})
+
+-- Button để mua ngay
+BossRushShopSection:AddButton({
+    Title = "Buy Now",
+    Callback = function()
+        buyBossRushItem(selectedBossRushItem, selectedBossRushAmount)
+    end
+})
+
+-- Toggle để bật/tắt Auto Buy
+BossRushShopSection:AddToggle("AutoBossRushBuyToggle", {
+    Title = "Auto Buy",
+    Default = ConfigSystem.CurrentConfig.AutoBossRushBuy or false,
+    Callback = function(Value)
+        autoBossRushBuyEnabled = Value
+        ConfigSystem.CurrentConfig.AutoBossRushBuy = Value
+        ConfigSystem.SaveConfig()
+        
+        if Value then
+            print("Auto Buy Boss Rush Shop đã được bật")
+            
+            -- Tạo vòng lặp Auto Buy
+            _G.autoBossRushBuyLoop = spawn(function()
+                while autoBossRushBuyEnabled and wait(5) do -- Mua mỗi 5 giây
+                    buyBossRushItem(selectedBossRushItem, selectedBossRushAmount)
+                end
+            end)
+        else
+            print("Auto Buy Boss Rush Shop đã được tắt")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.autoBossRushBuyLoop then
+                _G.autoBossRushBuyLoop:Disconnect()
+                _G.autoBossRushBuyLoop = nil
             end
         end
     end
