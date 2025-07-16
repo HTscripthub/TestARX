@@ -2783,10 +2783,13 @@ InGameSection:AddToggle("AutoPathToggle", {
                         end)
                         
                         if success then
-                            if faseValue >= 1 and faseValue <= 3 then
+                            if faseValue >= 0 and faseValue <= 1 then
+                                maxPath = 1 -- Chỉ đi đường 1
+                                print("Fase " .. faseValue .. ": Giới hạn đường đi 1")
+                            elseif faseValue >= 2 and faseValue <= 3 then
                                 maxPath = 2 -- Chỉ đi đường 1-2
                                 print("Fase " .. faseValue .. ": Giới hạn đường đi 1-2")
-                            elseif faseValue >= 4 and faseValue <= 6 then
+                            elseif faseValue >= 4 and faseValue <= 5 then
                                 maxPath = 3 -- Đi đường 1-2-3
                                 print("Fase " .. faseValue .. ": Giới hạn đường đi 1-3")
                             elseif faseValue >= 7 then
