@@ -2705,8 +2705,8 @@ end
 
 -- Input cho Auto Path Delay
 InGameSection:AddInput("AutoPathDelayInput", {
-    Title = "Path Delay (1-30s)",
-    Placeholder = "Nhập giây",
+    Title = "Path Delay",
+    Placeholder = "(1-30s)",
     Default = tostring(_G.autoPathDelay),
     Numeric = true,
     Finished = true,
@@ -2814,10 +2814,13 @@ InGameSection:AddToggle("AutoPathToggle", {
                         if success then
                             print("Đã chuyển sang đường đi " .. currentPath)
                             
-                            -- Thêm: Đặt unit tự động sau khi chuyển đường
-                            if _G.autoPlaceUnitEnabled then
+                            -- Thêm: Đặt unit tự động sau khi chuyển đường (chỉ khi Auto Play tắt)
+                            if _G.autoPlaceUnitEnabled and not autoPlayEnabled then
                                 wait(0.5) -- Đợi 0.5 giây sau khi chuyển đường
                                 _G.placeUnitByPriority()
+                                print("Đặt unit tự động sau khi chuyển đường")
+                            elseif _G.autoPlaceUnitEnabled and autoPlayEnabled then
+                                print("Auto Play đang bật, bỏ qua việc đặt unit tự động sau khi chuyển đường")
                             end
                         else
                             warn("Lỗi khi chuyển đường đi: " .. tostring(err))
