@@ -1759,6 +1759,62 @@ QuestSection:AddToggle("AutoClaimQuestToggle", {
 -- Thêm section thiết lập trong tab Settings
 local SettingsSection = SettingsTab:AddSection("Thiết lập")
 
+-- Thêm section Speed trong tab Settings
+local SpeedSection = SettingsTab:AddSection("Speed")
+
+-- Biến lưu trạng thái speed
+local selectedGameSpeed = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1"
+local speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
+
+-- Dropdown chọn speed
+SpeedSection:AddDropdown("SpeedDropdown", {
+    Title = "Speed",
+    Values = {"1", "2", "3"},
+    Multi = false,
+    Default = selectedGameSpeed,
+    Callback = function(Value)
+        selectedGameSpeed = Value
+        ConfigSystem.CurrentConfig.SelectedGameSpeed = Value
+        ConfigSystem.SaveConfig()
+        print("Đã chọn speed: " .. Value)
+        -- Nếu đang bật Enable thì gửi lệnh luôn
+        if speedEnabled then
+            local args = {tonumber(selectedGameSpeed)}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
+        end
+    end
+})
+
+-- Toggle bật/tắt speed
+SpeedSection:AddToggle("SpeedEnableToggle", {
+    Title = "Enable",
+    Default = speedEnabled,
+    Callback = function(Value)
+        speedEnabled = Value
+        ConfigSystem.CurrentConfig.SpeedEnabled = Value
+        ConfigSystem.SaveConfig()
+        if Value then
+            local args = {tonumber(selectedGameSpeed)}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
+            print("Đã bật Speed với giá trị: " .. selectedGameSpeed)
+        else
+            print("Đã tắt Speed")
+        end
+    end
+})
+
+-- Lặp lại gửi SpeedGamepass mỗi 5 giây nếu đang bật
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if speedEnabled then
+            local args = {tonumber(selectedGameSpeed)}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
+            print("[SpeedLoop] Gửi lại speed: " .. selectedGameSpeed)
+        end
+    end
+end)
+
 -- Dropdown chọn theme
 SettingsSection:AddDropdown("ThemeDropdown", {
     Title = "Chọn Theme",
@@ -6730,59 +6786,3 @@ BossRushShopSection:AddToggle("AutoBossRushBuyToggle", {
         end
     end
 })
-
--- Thêm section Speed trong tab Settings
-local SpeedSection = SettingsTab:AddSection("Speed")
-
--- Biến lưu trạng thái speed
-local selectedGameSpeed = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1"
-local speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
-
--- Dropdown chọn speed
-SpeedSection:AddDropdown("SpeedDropdown", {
-    Title = "Speed",
-    Values = {"1", "2", "3"},
-    Multi = false,
-    Default = selectedGameSpeed,
-    Callback = function(Value)
-        selectedGameSpeed = Value
-        ConfigSystem.CurrentConfig.SelectedGameSpeed = Value
-        ConfigSystem.SaveConfig()
-        print("Đã chọn speed: " .. Value)
-        -- Nếu đang bật Enable thì gửi lệnh luôn
-        if speedEnabled then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-        end
-    end
-})
-
--- Toggle bật/tắt speed
-SpeedSection:AddToggle("SpeedEnableToggle", {
-    Title = "Enable",
-    Default = speedEnabled,
-    Callback = function(Value)
-        speedEnabled = Value
-        ConfigSystem.CurrentConfig.SpeedEnabled = Value
-        ConfigSystem.SaveConfig()
-        if Value then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-            print("Đã bật Speed với giá trị: " .. selectedGameSpeed)
-        else
-            print("Đã tắt Speed")
-        end
-    end
-})
-
--- Lặp lại gửi SpeedGamepass mỗi 5 giây nếu đang bật
-task.spawn(function()
-    while true do
-        task.wait(5)
-        if speedEnabled then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-            print("[SpeedLoop] Gửi lại speed: " .. selectedGameSpeed)
-        end
-    end
-end)
