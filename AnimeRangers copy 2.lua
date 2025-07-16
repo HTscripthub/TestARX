@@ -1759,62 +1759,6 @@ QuestSection:AddToggle("AutoClaimQuestToggle", {
 -- Thêm section thiết lập trong tab Settings
 local SettingsSection = SettingsTab:AddSection("Thiết lập")
 
--- Thêm section Speed trong tab Settings
-local SpeedSection = SettingsTab:AddSection("Speed")
-
--- Biến lưu trạng thái speed
-local selectedGameSpeed = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1"
-local speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
-
--- Dropdown chọn speed
-SpeedSection:AddDropdown("SpeedDropdown", {
-    Title = "Speed",
-    Values = {"1", "2", "3"},
-    Multi = false,
-    Default = selectedGameSpeed,
-    Callback = function(Value)
-        selectedGameSpeed = Value
-        ConfigSystem.CurrentConfig.SelectedGameSpeed = Value
-        ConfigSystem.SaveConfig()
-        print("Đã chọn speed: " .. Value)
-        -- Nếu đang bật Enable thì gửi lệnh luôn
-        if speedEnabled then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-        end
-    end
-})
-
--- Toggle bật/tắt speed
-SpeedSection:AddToggle("SpeedEnableToggle", {
-    Title = "Enable",
-    Default = speedEnabled,
-    Callback = function(Value)
-        speedEnabled = Value
-        ConfigSystem.CurrentConfig.SpeedEnabled = Value
-        ConfigSystem.SaveConfig()
-        if Value then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-            print("Đã bật Speed với giá trị: " .. selectedGameSpeed)
-        else
-            print("Đã tắt Speed")
-        end
-    end
-})
-
--- Lặp lại gửi SpeedGamepass mỗi 5 giây nếu đang bật
-task.spawn(function()
-    while true do
-        task.wait(5)
-        if speedEnabled then
-            local args = {tonumber(selectedGameSpeed)}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
-            print("[SpeedLoop] Gửi lại speed: " .. selectedGameSpeed)
-        end
-    end
-end)
-
 -- Dropdown chọn theme
 SettingsSection:AddDropdown("ThemeDropdown", {
     Title = "Chọn Theme",
@@ -1972,7 +1916,7 @@ local function setupOptimizedLoops()
 end
 
 -- Thêm section Ranger Stage trong tab Play
-_G.RangerSection = PlayTab:AddSection("Ranger Stage")
+local RangerSection = PlayTab:AddSection("Ranger Stage")
 
 -- Hàm để thay đổi act
 local function changeAct(map, act)
@@ -2118,6 +2062,9 @@ local function joinRangerStage(mapToJoin, actToJoin)
 
     return true
 end
+
+-- Hàm để lặp qua các selected Acts (Sửa đổi để không cần thiết nữa nếu chỉ dùng cho Auto Join All)
+-- local function cycleRangerStages() ... end -- Có thể xóa hoặc giữ lại nếu vẫn cần Auto Join Ranger theo UI
 
 -- Lưu biến cho Story Time Delay
 local storyTimeDelayInput = nil
@@ -2899,7 +2846,7 @@ InGameSection:AddToggle("AutoPathToggle", {
     end
 })
 
--- Biến lưu trạng thái Auto TP Lobby
+-- Thêm biến lưu trạng thái Auto TP Lobby
 local autoTPLobbyEnabled = ConfigSystem.CurrentConfig.AutoTPLobby or false
 local autoTPLobbyDelay = ConfigSystem.CurrentConfig.AutoTPLobbyDelay or 10 -- Mặc định 10 phút
 local autoTPLobbyLoop = nil
@@ -6098,7 +6045,7 @@ spawn(function()
 end)
 
 -- Thêm section BossRush trong tab Play
-_G.BossRushSection = PlayTab:AddSection("Boss Rush")
+local BossRushSection = PlayTab:AddSection("Boss Rush")
 
 -- Biến lưu trạng thái BossRush
 autoBossRushEnabled = ConfigSystem.CurrentConfig.AutoBossRush or false
@@ -6165,7 +6112,7 @@ BossRushSection:AddToggle("AutoBossRushToggle", {
 })
 
 -- Thêm section Raid trong tab Play
-_G.RaidSection = PlayTab:AddSection("Raid")
+local RaidSection = PlayTab:AddSection("Raid")
 
 -- Biến lưu trạng thái Raid (sử dụng biến toàn cục để giảm số lượng biến cục bộ)
 selectedRaidMap = ConfigSystem.CurrentConfig.SelectedRaidMap or "SteelBlitzRush"
@@ -6325,7 +6272,7 @@ RaidSection:AddToggle("AutoJoinRaidToggle", {
 })
 
 -- Thêm section Event trong tab Play
-_G.EventSection = PlayTab:AddSection("Event")
+EventSection = PlayTab:AddSection("Event")
 
 -- Biến lưu trạng thái Event
 autoJoinSummerEnabled = ConfigSystem.CurrentConfig.AutoJoinSummer or false
@@ -6782,6 +6729,80 @@ BossRushShopSection:AddToggle("AutoBossRushBuyToggle", {
             if _G.autoBossRushBuyLoop then
                 _G.autoBossRushBuyLoop:Disconnect()
                 _G.autoBossRushBuyLoop = nil
+            end
+        end
+    end
+})
+
+-- Thêm section Speed trong tab Settings
+SpeedSection = SettingsTab:AddSection("Speed")
+
+-- Biến lưu trạng thái Speed
+selectedGameSpeed = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1"
+speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
+
+-- Hàm để thay đổi tốc độ game
+function setGameSpeed(speed)
+    local success, err = pcall(function()
+        local speedNum = tonumber(speed) or 1
+        local args = { speedNum }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("SpeedGamepass"):FireServer(unpack(args))
+        print("Đã đặt tốc độ game thành: " .. speedNum)
+    end)
+    
+    if not success then
+        warn("Lỗi khi thay đổi tốc độ game: " .. tostring(err))
+    end
+end
+
+-- Dropdown để chọn tốc độ
+SpeedSection:AddDropdown("GameSpeedDropdown", {
+    Title = "Speed",
+    Values = {"1", "2", "3"},
+    Multi = false,
+    Default = ConfigSystem.CurrentConfig.SelectedGameSpeed or "1",
+    Callback = function(Value)
+        selectedGameSpeed = Value
+        ConfigSystem.CurrentConfig.SelectedGameSpeed = Value
+        ConfigSystem.SaveConfig()
+        
+        -- Nếu Speed đang được bật, áp dụng tốc độ mới ngay lập tức
+        if speedEnabled then
+            setGameSpeed(Value)
+        end
+        
+        print("Đã chọn tốc độ: " .. Value)
+    end
+})
+
+-- Toggle để bật/tắt Speed
+SpeedSection:AddToggle("SpeedToggle", {
+    Title = "Enable",
+    Default = ConfigSystem.CurrentConfig.SpeedEnabled or false,
+    Callback = function(Value)
+        speedEnabled = Value
+        ConfigSystem.CurrentConfig.SpeedEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if Value then
+            print("Speed đã được bật, đặt tốc độ: " .. selectedGameSpeed)
+            setGameSpeed(selectedGameSpeed)
+            
+            -- Tạo vòng lặp để đảm bảo tốc độ luôn được áp dụng
+            _G.speedLoop = spawn(function()
+                while speedEnabled do
+                    setGameSpeed(selectedGameSpeed)
+                    wait(1) -- Kiểm tra và áp dụng tốc độ thường xuyên hơn
+                end
+            end)
+        else
+            print("Speed đã được tắt, đặt lại tốc độ mặc định: 1")
+            setGameSpeed("1")
+            
+            -- Hủy vòng lặp nếu có
+            if _G.speedLoop then
+                _G.speedLoop:Disconnect()
+                _G.speedLoop = nil
             end
         end
     end
