@@ -3477,7 +3477,7 @@ UnitsUpdateSection:AddToggle("AutoUpdateRandomToggle", {
 
             -- Tạo vòng lặp mới
             spawn(function()
-                while autoUpdateRandomEnabled and wait(1) do -- Cập nhật mỗi 3 giây
+                while autoUpdateRandomEnabled and wait(2) do -- Cập nhật mỗi 2 giây
                     -- Kiểm tra xem có trong map không
                     if isPlayerInMap() and #unitSlots > 0 then
                         -- Chọn ngẫu nhiên một slot để nâng cấp
