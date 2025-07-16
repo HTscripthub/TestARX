@@ -6792,7 +6792,7 @@ SpeedSection:AddToggle("SpeedToggle", {
             _G.speedLoop = spawn(function()
                 while speedEnabled do
                     setGameSpeed(selectedGameSpeed)
-                    wait(1) -- Kiểm tra và áp dụng tốc độ thường xuyên hơn
+                    wait(10) -- Kiểm tra và áp dụng tốc độ thường xuyên hơn
                 end
             end)
         else
