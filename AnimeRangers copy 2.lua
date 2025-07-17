@@ -3477,7 +3477,7 @@ UnitsUpdateSection:AddToggle("AutoUpdateRandomToggle", {
 
             -- Tạo vòng lặp mới
             spawn(function()
-                while autoUpdateRandomEnabled and wait(2) do -- Cập nhật mỗi 2 giây
+                while autoUpdateRandomEnabled and wait(3) do -- Cập nhật mỗi 3 giây
                     -- Kiểm tra xem có trong map không
                     if isPlayerInMap() and #unitSlots > 0 then
                         -- Chọn ngẫu nhiên một slot để nâng cấp
@@ -5215,7 +5215,7 @@ local function setupRewardsUIWatcher()
                         -- Lặp liên tục click cho tới khi RewardsUI.Enabled = true
                         task.spawn(function()
                             while true do
-                                task.wait(0.5) -- thời gian chờ giữa mỗi click, tránh spam quá nhanh
+                                task.wait(1) -- thời gian chờ giữa mỗi click, tránh spam quá nhanh
 
                                 local rewardsUI = PlayerGui:FindFirstChild("RewardsUI")
                                 if rewardsUI and rewardsUI.Enabled then
@@ -6072,7 +6072,7 @@ local function joinBossRush()
             [1] = "BossRush"
         }
         Event:FireServer(unpack(args1))
-        wait(0.5)
+        wait(5)
         print("Bước 1: Đã gửi lệnh BossRush")
 
         -- Bước 2: Gửi "Start"
