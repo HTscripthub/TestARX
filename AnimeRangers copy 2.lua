@@ -5215,7 +5215,7 @@ local function setupRewardsUIWatcher()
                         -- Lặp liên tục click cho tới khi RewardsUI.Enabled = true
                         task.spawn(function()
                             while true do
-                                task.wait(1) -- thời gian chờ giữa mỗi click, tránh spam quá nhanh
+                                task.wait(0.5) -- thời gian chờ giữa mỗi click, tránh spam quá nhanh
 
                                 local rewardsUI = PlayerGui:FindFirstChild("RewardsUI")
                                 if rewardsUI and rewardsUI.Enabled then
@@ -5238,7 +5238,7 @@ local function setupRewardsUIWatcher()
                 -- Chỉ kích hoạt nếu RewardsUI được bật VÀ chưa thực hiện Auto Retry/Auto Next
                 if rewardsUI and rewardsUI.Enabled and not hasTriggeredAction then
                     print("RewardsUI được bật lên, sẽ kích hoạt Auto Retry và Auto Next sau 1s")
-                    wait(1) -- Đợi 1 giây như yêu cầu
+                    wait(0.5) -- Đợi 1 giây như yêu cầu
 
                     -- Đánh dấu đã kích hoạt để không kích hoạt lại liên tục
                     hasTriggeredAction = true
