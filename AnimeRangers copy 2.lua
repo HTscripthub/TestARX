@@ -2663,6 +2663,180 @@ ChallengeSection:AddToggle("AutoChallengeToggle", {
 -- Thêm section In-Game Controls
 local InGameSection = InGameTab:AddSection("Game Controls")
 
+-- Biến toàn cục cho Auto Path Castle
+_G.autoPathCastleEnabled = false
+_G.autoPathCastleLoop = nil
+_G.autoPathCastleDelay = ConfigSystem.CurrentConfig.AutoPathCastleDelay or 3 -- Thêm biến cho delay của auto path Castle (mặc định 3 giây)
+_G.autoPlaceUnitEnabled = ConfigSystem.CurrentConfig.AutoPathCastle or false -- Thêm biến cho chức năng đặt unit tự động
+
+-- Biến lưu trữ unit index hiện tại cho Auto Path
+_G.currentUnitIndex = 1
+
+-- Hàm để đặt unit tự động theo priority từ trên xuống dưới
+_G.placeUnitByPriority = function()
+    local player = game:GetService("Players").LocalPlayer
+    local unitsFolder = player:FindFirstChild("UnitsFolder")
+    
+    if unitsFolder and #unitsFolder:GetChildren() > 0 then
+        -- Lấy danh sách units
+        local units = unitsFolder:GetChildren()
+        
+        -- Kiểm tra và đảm bảo index hợp lệ
+        if _G.currentUnitIndex > #units then
+            _G.currentUnitIndex = 1
+        end
+        
+        -- Lấy unit theo index hiện tại
+        local unitName = units[_G.currentUnitIndex].Name
+        
+        -- Thực hiện đặt unit
+        pcall(function()
+            local args = {
+                [1] = game:GetService("ReplicatedStorage"):WaitForChild("Player_Data"):WaitForChild(player.Name):WaitForChild("Collection"):WaitForChild(unitName)
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("Deployment"):FireServer(unpack(args))
+            print("Đã đặt unit: " .. unitName .. " (index: " .. _G.currentUnitIndex .. "/" .. #units .. ")")
+        end)
+        
+        -- Tăng index cho lần tiếp theo
+        _G.currentUnitIndex = _G.currentUnitIndex + 1
+    end
+end
+
+-- Input cho Auto Path Delay
+InGameSection:AddInput("AutoPathCastleDelayInput", {
+    Title = "Path Castle Delay",
+    Placeholder = "(1-30s)",
+    Default = tostring(_G.autoPathCastleDelay),
+    Numeric = true,
+    Finished = true,
+    Callback = function(Value)
+        local numValue = tonumber(Value)
+        if numValue and numValue >= 1 and numValue <= 30 then
+            _G.autoPathCastleDelay = numValue
+            ConfigSystem.CurrentConfig.AutoPathCastleDelay = numValue
+            ConfigSystem.SaveConfig()
+            print("Đã đặt Auto Path Delay: " .. numValue .. " giây")
+        else
+            print("Giá trị delay không hợp lệ (1-30 giây)")
+        end
+    end
+})
+
+-- Toggle Auto Path
+InGameSection:AddToggle("AutoPathCastleToggle", {
+    Title = "Auto Path Castle",
+    Default = ConfigSystem.CurrentConfig.AutoPathCastle or false,
+    Callback = function(Value)
+        -- Sử dụng biến toàn cục để tránh vượt quá giới hạn biến local
+        _G.autoPathCastleEnabled = Value
+        _G.autoPlaceUnitEnabled = Value
+        ConfigSystem.CurrentConfig.AutoPathCastle = Value
+        ConfigSystem.SaveConfig()
+
+        if Value then
+            print("Auto Path đã được bật, sẽ tự động chuyển đổi đường đi mỗi " .. _G.autoPathDelay .. " giây")
+
+            -- Hủy vòng lặp cũ nếu có
+            if _G.autoPathCastleLoop then
+                _G.autoPathCastleLoop:Disconnect()
+                _G.autoPathCastleLoop = nil
+            end
+
+            -- Tạo vòng lặp mới
+            _G.autoPathCastleLoop = spawn(function()
+                local currentPath = 1
+                while _G.autoPathCastleEnabled and wait(_G.autoPathCastleDelay) do -- Chuyển đổi theo thời gian đã cài đặt
+                    -- Kiểm tra xem GameEndedAnimationUI có tồn tại không
+                    local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
+                    if playerGui:FindFirstChild("GameEndedAnimationUI") then
+                        print("Phát hiện game kết thúc, đợi 1 giây và reset về đường 1")
+                        wait(1) -- Đợi 1 giây
+                        currentPath = 1 -- Reset về đường 1
+                        _G.currentUnitIndex = 1 -- Reset unit index
+                        
+                        -- Chuyển về đường 1
+                        local args = {
+                            [1] = currentPath
+                        }
+                        
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
+                        end)
+                        
+                        if success then
+                            print("Đã reset về đường 1 sau khi game kết thúc")
+                        else
+                            warn("Lỗi khi reset đường đi: " .. tostring(err))
+                        end
+                        
+                        wait(2) -- Đợi thêm 2 giây trước khi tiếp tục vòng lặp
+                        print("Tiếp tục vòng lặp Auto Path sau khi game kết thúc")
+                    end
+                    
+                    -- Chỉ thực hiện khi đang ở trong map
+                    if isPlayerInMap() then
+                        -- Kiểm tra giá trị InfinityCastle.Floor để xác định đường đi tối đa
+                        local maxPath = 3 -- Mặc định là 3 đường
+                        local success, floorValue = pcall(function()
+                            return game:GetService("ReplicatedStorage").Values.Game.InfinityCastle.Floor.Value
+                        end)
+                        
+                        if success then
+                            if floorValue >= 0 and floorValue <= 2 then
+                                maxPath = 3 -- Chỉ đi đường 1-2-3
+                                print("Floor " .. floorValue .. ": Giới hạn đường đi 1-2-3")
+                            end
+                        else
+                            warn("Không thể đọc giá trị InfinityCastle.Floor, sử dụng mặc định (1-4)")
+                        end
+                        
+                        -- Kiểm tra nếu đường đi hiện tại vượt quá giới hạn thì reset về 1
+                        if currentPath > maxPath then
+                            currentPath = 1
+                            print("Đã reset về đường 1 do vượt quá giới hạn đường đi cho floor hiện tại")
+                        end
+                        
+                        local args = {
+                            [1] = currentPath
+                        }
+                        
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("Units"):WaitForChild("SelectWay"):FireServer(unpack(args))
+                        end)
+                        
+                        if success then
+                            print("Đã chuyển sang đường đi " .. currentPath)
+                            
+                            -- Thêm: Đặt unit tự động sau khi chuyển đường (chỉ khi Auto Play tắt)
+                            if _G.autoPlaceUnitEnabled and not autoPlayEnabled then
+                                wait(0.5) -- Đợi 0.5 giây sau khi chuyển đường
+                                _G.placeUnitByPriority()
+                                print("Đặt unit tự động sau khi chuyển đường")
+                            elseif _G.autoPlaceUnitEnabled and autoPlayEnabled then
+                                print("Auto Play đang bật, bỏ qua việc đặt unit tự động sau khi chuyển đường")
+                            end
+                        else
+                            warn("Lỗi khi chuyển đường đi: " .. tostring(err))
+                        end
+                        
+                        -- Tính toán đường đi tiếp theo dựa trên maxPath
+                        currentPath = currentPath % maxPath + 1
+                    end
+                end
+            end)
+        else
+            print("Auto Path Castle đã được tắt")
+
+            -- Hủy vòng lặp nếu có
+            if _G.autoPathCastleLoop then
+                _G.autoPathCastleLoop:Disconnect()
+                _G.autoPathCastleLoop = nil
+            end
+        end
+    end
+})
+
 -- Biến toàn cục cho Auto Path
 _G.autoPathEnabled = false
 _G.autoPathLoop = nil
