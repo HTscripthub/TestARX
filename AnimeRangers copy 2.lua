@@ -2705,7 +2705,7 @@ end
 
 -- Input cho Auto Path Delay
 InGameSection:AddInput("AutoPathCastleDelayInput", {
-    Title = "Path Castle Delay",
+    Title = "Castle Delay",
     Placeholder = "(1-30s)",
     Default = tostring(_G.autoPathCastleDelay),
     Numeric = true,
@@ -2783,7 +2783,7 @@ InGameSection:AddToggle("AutoPathCastleToggle", {
                         end)
                         
                         if success then
-                            if floorValue >= 0 and floorValue <= 2 then
+                            if floorValue >= 0 and floorValue <= 50 then
                                 maxPath = 3 -- Chỉ đi đường 1-2-3
                                 print("Floor " .. floorValue .. ": Giới hạn đường đi 1-2-3")
                             end
