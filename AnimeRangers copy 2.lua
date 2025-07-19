@@ -2783,7 +2783,7 @@ InGameSection:AddToggle("AutoPathCastleToggle", {
                         end)
                         
                         if success then
-                            if floorValue >= 0 and floorValue <= 50 then
+                            if floorValue >= 0 and floorValue <= 2 then
                                 maxPath = 3 -- Chỉ đi đường 1-2-3
                                 print("Floor " .. floorValue .. ": Giới hạn đường đi 1-2-3")
                             end
