@@ -2063,9 +2063,6 @@ local function joinRangerStage(mapToJoin, actToJoin)
     return true
 end
 
--- Hàm để lặp qua các selected Acts (Sửa đổi để không cần thiết nữa nếu chỉ dùng cho Auto Join All)
--- local function cycleRangerStages() ... end -- Có thể xóa hoặc giữ lại nếu vẫn cần Auto Join Ranger theo UI
-
 -- Lưu biến cho Story Time Delay
 local storyTimeDelayInput = nil
 
@@ -4221,7 +4218,10 @@ local function createEmbed(rewards, gameInfo)
     -- Thêm trường phần thưởng
     local rewardText = ""
     for _, r in ipairs(rewards) do
-        rewardText = rewardText .. "- " .. r.Name .. ": +" .. r.Amount .. "\n"
+        rewardText = rewardText .. "- " .. r.Name .. ": +" .. r.Amount
+        local playerName = game:GetService("Players").LocalPlayer.Name
+        local totalAmount = game:GetService("ReplicatedStorage").Player_Data[playerName].Items[r.Name] and game:GetService("ReplicatedStorage").Player_Data[playerName].Items[r.Name].Amount or 0
+        rewardText = rewardText .. " [ " .. totalAmount .. " ]\n"
     end
 
     if rewardText ~= "" then
@@ -6134,7 +6134,7 @@ EvolveTierSection:AddButton({
 
 -- Toggle Auto Evolve
 EvolveTierSection:AddToggle("AutoEvolveToggle", {
-    Title = "Auto Evolve",
+    Title = "AutoEvolve",
     Default = _G.autoEvolveEnabled,
     Callback = function(Value)
         _G.autoEvolveEnabled = Value
