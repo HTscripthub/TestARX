@@ -2063,6 +2063,9 @@ local function joinRangerStage(mapToJoin, actToJoin)
     return true
 end
 
+-- Hàm để lặp qua các selected Acts (Sửa đổi để không cần thiết nữa nếu chỉ dùng cho Auto Join All)
+-- local function cycleRangerStages() ... end -- Có thể xóa hoặc giữ lại nếu vẫn cần Auto Join Ranger theo UI
+
 -- Lưu biến cho Story Time Delay
 local storyTimeDelayInput = nil
 
@@ -4108,7 +4111,7 @@ Fluent:Notify({
     Duration = 3
 })
 
--- Biến lưu trạng thái Webhook sử dụng _G (cách 3)
+-- Biến lưu trạng thái Webhook
 _G.webhookURL = ConfigSystem.CurrentConfig.WebhookURL or ""
 _G.autoSendWebhookEnabled = ConfigSystem.CurrentConfig.AutoSendWebhook or false
 _G.webhookSentLog = {} -- Lưu trữ log các lần đã gửi để tránh gửi lặp lại
@@ -4217,11 +4220,26 @@ local function createEmbed(rewards, gameInfo)
 
     -- Thêm trường phần thưởng
     local rewardText = ""
+    local player = game:GetService("Players").LocalPlayer
+    local playerDataPath = game:GetService("ReplicatedStorage"):FindFirstChild("Player_Data")
+    local playerItems = playerDataPath and playerDataPath:FindFirstChild(player.Name) and playerDataPath[player.Name]:FindFirstChild("Items")
+
     for _, r in ipairs(rewards) do
-        rewardText = rewardText .. "- " .. r.Name .. ": +" .. r.Amount
-        local playerName = game:GetService("Players").LocalPlayer.Name
-        local totalAmount = game:GetService("ReplicatedStorage").Player_Data[playerName].Items[r.Name] and game:GetService("ReplicatedStorage").Player_Data[playerName].Items[r.Name].Amount or 0
-        rewardText = rewardText .. " [ " .. totalAmount .. " ]\n"
+        local itemName = r.Name
+        local itemAmount = r.Amount
+        local currentItemTotal = 0
+
+        if playerItems and playerItems:FindFirstChild(itemName) and playerItems[itemName]:FindFirstChild("Amount") then
+            currentItemTotal = playerItems[itemName].Amount.Value
+        end
+
+        if itemName ~= "" and itemAmount ~= "" then -- Chỉ hiển thị nếu có tên và số lượng
+            rewardText = rewardText .. "- " .. itemName .. ": +" .. itemAmount
+            if currentItemTotal > 0 then
+                rewardText = rewardText .. " [ " .. currentItemTotal .. " ]"
+            end
+            rewardText = rewardText .. "\n"
+        end
     end
 
     if rewardText ~= "" then
@@ -6134,7 +6152,7 @@ EvolveTierSection:AddButton({
 
 -- Toggle Auto Evolve
 EvolveTierSection:AddToggle("AutoEvolveToggle", {
-    Title = "AutoEvolve",
+    Title = "Auto Evolve",
     Default = _G.autoEvolveEnabled,
     Callback = function(Value)
         _G.autoEvolveEnabled = Value
